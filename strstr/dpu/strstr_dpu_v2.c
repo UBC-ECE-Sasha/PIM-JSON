@@ -22,7 +22,11 @@ __mram_noinit uint8_t DPU_BUFFER[BUFFER_SIZE];
 __mram_noinit uint8_t RECORDS_BUFFER[RETURN_RECORDS_SIZE];
 __mram_noinit uint8_t KEY[MAX_KEY_SIZE];
 __host dpu_results_t DPU_RESULTS[NR_TASKLETS];
+uint8_t __mram_ptr* star[NR_TASKLETS];
+uint8_t __mram_ptr* end_pos[NR_TASKLETS];
 
+
+#define DEBUG
 
 /*
  * Parse search string from mram
@@ -55,16 +59,18 @@ void printRecord(uint8_t* record_start, uint32_t length) {
 }
 
 bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
-    int tasklet_id = me();
-    uint8_t __mram_ptr * star = &(DPU_BUFFER[start]);
+    volatile int tasklet_id = me();
+    star[tasklet_id] = &(DPU_BUFFER[start]);
     uint8_t __mram_ptr * max_addr =  &DPU_BUFFER[BUFFER_SIZE-1];
+    
+    printf("thread%d start position %x  max addr %x offset %d\n", tasklet_id, (uintptr_t)star[tasklet_id], (uintptr_t) max_addr, offset);
 
-    mram_read(star, cache, BLOCK_SIZE);
+    mram_read(star[tasklet_id], cache, BLOCK_SIZE);
     uint32_t read_adjust_offset = BLOCK_SIZE;
 
     if(tasklet_id !=0) {
         int copy_size = BLOCK_SIZE;
-        mram_read(star, cache, BLOCK_SIZE);
+        mram_read(star[tasklet_id], cache, BLOCK_SIZE);
         // in case we read over
         if(&DPU_BUFFER[start+BLOCK_SIZE] >= max_addr) {
             copy_size = BUFFER_SIZE - start;
@@ -77,20 +83,30 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
             return false;
         }
         else {
-            star = &DPU_BUFFER[valid_start - cache +1];
+            star[tasklet_id] = &DPU_BUFFER[start+valid_start - cache +1];
         }
+
+        printf("thread %d actuay start %x\n", tasklet_id, (uintptr_t)star[tasklet_id]);
     }
 
-   uint8_t __mram_ptr * end;
+ //  uint8_t __mram_ptr * end;
    uint8_t* record_end;
    uint32_t record_count =0;
-   if( tasklet_id == (NR_TASKLETS-1) ){
-     end = max_addr;
-   } else {
-        uint8_t __mram_ptr * end_pos = star+ offset-1;  /* might get lucky and end up perfectly aligned, so check that char */
 
+//    if( tasklet_id == (NR_TASKLETS-1) ){
+//      end = max_addr;
+//    } else {
+        if(tasklet_id == (NR_TASKLETS-1) ){
+            end_pos[tasklet_id] = max_addr;
+        }
+        else {
+
+        
+        end_pos[tasklet_id] = star[tasklet_id]+ offset-1;  /* might get lucky and end up perfectly aligned, so check that char */
+        }
+        printf("thread%d end position %x\n", tasklet_id, (uintptr_t)(end_pos[tasklet_id]));
         do {
-            mram_read(star, cache, BLOCK_SIZE);
+            mram_read(star[tasklet_id], cache, BLOCK_SIZE);
             record_end =  memchr(cache, '\n', BLOCK_SIZE);
             uint8_t* block_end = cache+BLOCK_SIZE-1;
             if(!record_end) {
@@ -103,8 +119,8 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                      printf("thread %d address shift\n", tasklet_id);
                 }
                 else {
-                    printRecord(cache, record_length);
-                    printf("thread %d found record %d\n", tasklet_id, record_length);
+                    //printRecord(cache, record_length);
+                    printf("thread %d found record length%d\n", tasklet_id, record_length);
                     record_count++;
                 }
                 // printRecord(cache, record_length);
@@ -124,15 +140,16 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                         uint32_t org = read_adjust_offset;
                         // uint32_t power =1;
                         // while(read_adjust_offset >>=1) power <<=1;
-                        read_adjust_offset = read_adjust_offset- read_adjust_offset%8; //power;
+                        read_adjust_offset = read_adjust_offset- read_adjust_offset%8; 
                         printf("thread %d  %d adjust to %d\n", tasklet_id, org, read_adjust_offset);
                         break;
                     }
                     else{
                         //printf("found record\n");
                         if(record_end -record_start> MIN_RECORDS_LENGTH) {
-                            printf("thread %d found record\n", tasklet_id);
-                            printRecord(record_start, record_end -record_start);
+                            printf("thread %d found record length %d\n", tasklet_id, record_end -record_start);
+                            printf("thread %d record id: %c%c%c%c%c\n", tasklet_id, *(record_start+20), *(record_start+21), *(record_start+22),*(record_start+23),*(record_start+24));
+                            // printRecord(record_start, record_end -record_start);
                             record_count++;
                         }
                         total += record_end -record_start;
@@ -142,13 +159,13 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 }
                 while(total < BLOCK_SIZE);
             }
-            star += read_adjust_offset; //- read_adjust_offset%8;
+            star[tasklet_id] += read_adjust_offset; //- read_adjust_offset%8;
             // star = &DPU_BUFFER[start+read_adjust_offset];
             // start +=read_adjust_offset;
-        }while(star < max_addr && star < end_pos);
-   }
+        }while(star[tasklet_id] < max_addr && star[tasklet_id] < end_pos[tasklet_id]);
+   
 
-    printf("total records count %d\n", record_count);
+    printf("thread %d star finished at %x total records count %d\n", tasklet_id, (uintptr_t)star[tasklet_id],record_count);
     return true;
    
 }

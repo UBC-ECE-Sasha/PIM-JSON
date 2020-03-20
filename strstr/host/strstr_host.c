@@ -49,7 +49,7 @@ char* read_json_file() {
     strncpy(json_source, source, BUFFER_SIZE);
     // printf("%s", json_source);
     //free(source); 
-    printf("%s\n", json_source+(BUFFER_SIZE-50));
+    //printf("%s\n", json_source+(BUFFER_SIZE-50));
     return json_source;  
 }
 
