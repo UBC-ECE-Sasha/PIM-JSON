@@ -8,11 +8,15 @@
 #define DPU_BUFFER dpu_mram_buffer
 #define DPU_CACHES dpu_wram_caches
 #define DPU_RESULTS dpu_wram_results
+#define KEY dpu_wram_key
 
 // // /* Size of the buffer on which the strstr will be performed */
 //#define BUFFER_SIZE (8 << 20)
 
-#define BUFFER_SIZE (1 << 20)
+// #define BUFFER_SIZE (4 << 20)
+#define BUFFER_SIZE (4 << 13)
+#define MAX_KEY_SIZE 32
+
 /* Structure used by both the host and the dpu to communicate information */
 typedef struct {
     uint32_t found;

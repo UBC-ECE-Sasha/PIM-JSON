@@ -20,7 +20,7 @@
 
 char* read_json_file() {
     char *source = NULL;
-    FILE *fp = fopen("business.json", "r");
+    FILE *fp = fopen("tweets_sm.json", "r");
     if (fp != NULL) {
         /* Go to the end of the file. */
         if (fseek(fp, 0L, SEEK_END) == 0) {
@@ -65,6 +65,17 @@ char* populate_mram(struct dpu_set_t set) {
     buffer[byte_index] = (uint8_t)json_str[byte_index];
   }
   DPU_ASSERT(dpu_copy_to(set, XSTR(DPU_BUFFER), 0, buffer, BUFFER_SIZE));
+
+  uint8_t key_buffer[MAX_KEY_SIZE];
+
+  char key[] ="rump\n";
+  int len = strlen(key);
+  for (byte_index = 0; byte_index < len; byte_index++) {
+    key_buffer[byte_index] = (uint8_t)key[byte_index];
+  }
+
+  DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, key_buffer, MAX_KEY_SIZE));
+
 
   return json_str;
  }
