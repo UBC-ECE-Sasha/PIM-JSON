@@ -89,22 +89,23 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
         printf("thread %d actuay start %x\n", tasklet_id, (uintptr_t)star[tasklet_id]);
     }
 
- //  uint8_t __mram_ptr * end;
+
    uint8_t* record_end;
    uint32_t record_count =0;
+   uint8_t __mram_ptr* thread_org_start = NULL;
 
-//    if( tasklet_id == (NR_TASKLETS-1) ){
-//      end = max_addr;
-//    } else {
         if(tasklet_id == (NR_TASKLETS-1) ){
             end_pos[tasklet_id] = max_addr;
+            thread_org_start = star[tasklet_id];
+            //return true;
         }
         else {
 
-        
+
         end_pos[tasklet_id] = star[tasklet_id]+ offset-1;  /* might get lucky and end up perfectly aligned, so check that char */
         }
         printf("thread%d end position %x\n", tasklet_id, (uintptr_t)(end_pos[tasklet_id]));
+//        uint32_t count = 0;
         do {
             mram_read(star[tasklet_id], cache, BLOCK_SIZE);
             record_end =  memchr(cache, '\n', BLOCK_SIZE);
@@ -120,13 +121,20 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 }
                 else {
                     //printRecord(cache, record_length);
-                    printf("thread %d found record length%d\n", tasklet_id, record_length);
-                    record_count++;
+                    //printf("thread %d found record length%d first if\n", tasklet_id, record_length);
+                    printf("CHECK thread %d record id: %c%c%c%c%c first if\n", tasklet_id, *(cache+20), *(cache+21), *(cache+22),*(cache+23),*(cache+24));
+                    //record_count++;
+                    printf("thread %d %c%c%c%c%c%c%c\n", tasklet_id, cache[0], cache[1], cache[2], cache[3], cache[4], cache[5],cache[6]);
+
                 }
                 // printRecord(cache, record_length);
 
                 uint32_t total = record_length;
-                // search within cache for anothe records                
+                uint32_t max_block_size = BLOCK_SIZE;
+                // search within cache for another records   
+                if(tasklet_id == (NR_TASKLETS-1)){
+                    max_block_size = max_addr - thread_org_start;
+                }              
                 do {
                     uint8_t * record_start = (uint8_t*)(record_end+1);
                     if(record_start >block_end) {
@@ -142,13 +150,21 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                         // while(read_adjust_offset >>=1) power <<=1;
                         read_adjust_offset = read_adjust_offset- read_adjust_offset%8; 
                         printf("thread %d  %d adjust to %d\n", tasklet_id, org, read_adjust_offset);
+                        if(tasklet_id == (NR_TASKLETS-1)) {
+                            if(read_adjust_offset == 0 ){
+                                read_adjust_offset = BLOCK_SIZE;
+                                printf("max_block_size %x  total %d, start \n", max_block_size, total);
+                                printf("%s\n", record_start);
+                                break;
+                            }
+                        }
                         break;
                     }
                     else{
                         //printf("found record\n");
                         if(record_end -record_start> MIN_RECORDS_LENGTH) {
                             printf("thread %d found record length %d\n", tasklet_id, record_end -record_start);
-                            printf("thread %d record id: %c%c%c%c%c\n", tasklet_id, *(record_start+20), *(record_start+21), *(record_start+22),*(record_start+23),*(record_start+24));
+                            printf("CHECK thread %d record ID: %c%c%c%c%c searching\n", tasklet_id, *(record_start+20), *(record_start+21), *(record_start+22),*(record_start+23),*(record_start+24));
                             // printRecord(record_start, record_end -record_start);
                             record_count++;
                         }
@@ -157,11 +173,21 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
 
                     }
                 }
-                while(total < BLOCK_SIZE);
+                while(total < max_block_size);
             }
             star[tasklet_id] += read_adjust_offset; //- read_adjust_offset%8;
-            // star = &DPU_BUFFER[start+read_adjust_offset];
-            // start +=read_adjust_offset;
+ 
+            // if(tasklet_id == (NR_TASKLETS-1)) {
+            
+
+            //     if(count> 1){
+            //         break;
+            //     }
+            //     else{
+            //         count++;
+            //     }
+                
+            // }
         }while(star[tasklet_id] < max_addr && star[tasklet_id] < end_pos[tasklet_id]);
    
 

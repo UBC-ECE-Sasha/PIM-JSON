@@ -14,7 +14,9 @@
 //#define BUFFER_SIZE (8 << 20)
 
 // #define BUFFER_SIZE (4 << 20)
-#define BUFFER_SIZE (4 << 13)
+//#define BUFFER_SIZE (4 << 13)
+//#define BUFFER_SIZE (2 << 16)
+#define BUFFER_SIZE (1 << 20)
 #define MAX_KEY_SIZE 32
 
 /* Structure used by both the host and the dpu to communicate information */

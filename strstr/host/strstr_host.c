@@ -20,7 +20,7 @@
 
 char* read_json_file() {
     char *source = NULL;
-    FILE *fp = fopen("tweets_sm.json", "r");
+    FILE *fp = fopen("tweets_backup_2.json", "r");
     if (fp != NULL) {
         /* Go to the end of the file. */
         if (fseek(fp, 0L, SEEK_END) == 0) {
