@@ -58,6 +58,46 @@ void printRecord(uint8_t* record_start, uint32_t length) {
     printf("\n");
 }
 
+
+
+bool strstr_2_loop(uint8_t* record_start, uint32_t length) {
+
+  // windows CRT
+  char*s1,*s2;
+  char*cp = (char*)record_start;
+  //int j =0;
+  cp[length-1] = '\0';
+
+  for (uint32_t i =0; i< length; i++) {
+    s1= cp;
+    s2 = (char*)"rump";
+    while(*s1 &&*s2&&!(*s1-*s2)){
+      s1++; 
+      s2++;
+    }
+
+    if(!*s2) {
+      record_start[length-1] = '\n';
+      return true;
+    } 
+
+    cp++;
+  }
+  record_start[length-1] = '\n';
+  return false;
+}
+
+
+bool strstr_org(uint8_t* record_start, uint32_t length) {
+    record_start[length-1] = '\0';
+    if(!strstr((char*)record_start, (char*)key_cache)) {
+        record_start[length-1] = '\n';
+        return false;
+    }
+    record_start[length-1] = '\n';
+    return true;
+}
+
 bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
     volatile int tasklet_id = me();
     star[tasklet_id] = &(DPU_BUFFER[start]);
@@ -124,8 +164,10 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                     //printf("thread %d found record length%d first if\n", tasklet_id, record_length);
                     printf("CHECK thread %d record id: %c%c%c%c%c first if\n", tasklet_id, *(cache+20), *(cache+21), *(cache+22),*(cache+23),*(cache+24));
                     //record_count++;
-                    printf("thread %d %c%c%c%c%c%c%c\n", tasklet_id, cache[0], cache[1], cache[2], cache[3], cache[4], cache[5],cache[6]);
-
+                    // printf("thread %d %c%c%c%c%c%c%c\n", tasklet_id, cache[0], cache[1], cache[2], cache[3], cache[4], cache[5],cache[6]);
+                    if(strstr_org(cache, record_length)) {
+                         printf("SELECT thread %d record id: %c%c%c%c%c first if\n", tasklet_id, *(cache+20), *(cache+21), *(cache+22),*(cache+23),*(cache+24));
+                    }
                 }
                 // printRecord(cache, record_length);
 
@@ -162,9 +204,13 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                     }
                     else{
                         //printf("found record\n");
+
                         if(record_end -record_start> MIN_RECORDS_LENGTH) {
                             printf("thread %d found record length %d\n", tasklet_id, record_end -record_start);
                             printf("CHECK thread %d record ID: %c%c%c%c%c searching\n", tasklet_id, *(record_start+20), *(record_start+21), *(record_start+22),*(record_start+23),*(record_start+24));
+                            if(strstr_org(record_start, (record_end -record_start))) {
+                                printf("SELECT thread %d record id: %c%c%c%c%c first if\n", tasklet_id, *(record_start+20), *(record_start+21), *(record_start+22),*(record_start+23),*(record_start+24));
+                            }                            
                             // printRecord(record_start, record_end -record_start);
                             record_count++;
                         }
