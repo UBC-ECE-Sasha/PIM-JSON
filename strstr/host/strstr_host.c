@@ -114,8 +114,11 @@ int main() {
   uint32_t dpu_cycles=800000000;
   clock_t start, end;
 
+  start = clock();
   DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+  end = clock();
 
+  printf("dpu launch took %g s", ((double) (end - start)) / CLOCKS_PER_SEC);
 #ifdef DPU_LOG_ENABLE 
   {
     unsigned int each_dpu = 0;
@@ -127,6 +130,7 @@ int main() {
     }
   }
 #endif
+
 
   for (unsigned int each_tasklet = 0; each_tasklet < NR_TASKLETS; each_tasklet++) {
     dpu_results_t result;
