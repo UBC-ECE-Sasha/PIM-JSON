@@ -47,7 +47,10 @@ int main(int argc, char const *argv[])
 
 
     // populate to dpu mram
+    start = clock();
     DPU_ASSERT(dpu_copy_to(set, XSTR(DPU_BUFFER), 0, f, BUFFER_SIZE));
+    end = clock();
+    printf("dpu init copy took %g s\n", ((double) (end - start)) / CLOCKS_PER_SEC);
 
     char key[] ="aabaa\n";
     int len = strlen(key);
@@ -76,12 +79,14 @@ int main(int argc, char const *argv[])
     }
 #endif
 #if 1
-    uint32_t records_len=0;
-    DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&records_len, sizeof(records_len)));
-    printf("records length is %d\n", records_len);
-    uint8_t ret[RETURN_RECORDS_SIZE]; 
-    DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)&ret, RETURN_RECORDS_SIZE));
 
+    uint32_t records_len=0;
+    uint8_t ret[RETURN_RECORDS_SIZE];
+    start = clock();
+    DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&records_len, sizeof(records_len)));
+    DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)&ret, RETURN_RECORDS_SIZE));
+    end = clock();
+    printf("records length is %d took %g s\n", records_len, ((double) (end - start)) / CLOCKS_PER_SEC);
     for (int k=0; k< RETURN_RECORDS_SIZE; k++){
         char c;
         c= ret[k];
