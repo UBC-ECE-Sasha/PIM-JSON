@@ -75,14 +75,13 @@ int main(int argc, char const *argv[])
         }
     }
 #endif
-#if 0
+#if 1
     uint32_t records_len=0;
     DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&records_len, sizeof(records_len)));
     printf("records length is %d\n", records_len);
     uint8_t ret[RETURN_RECORDS_SIZE]; 
     DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)&ret, RETURN_RECORDS_SIZE));
 
-    // printf("length of returned records %ld\n", strlen((char*)ret));
     for (int k=0; k< RETURN_RECORDS_SIZE; k++){
         char c;
         c= ret[k];
