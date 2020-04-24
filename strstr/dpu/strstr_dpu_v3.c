@@ -17,7 +17,7 @@
 #define MIN_RECORDS_LENGTH 8
 
 __dma_aligned uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
-//__dma_aligned uint8_t WRITE_CACHE[BLOCK_SIZE];
+__dma_aligned uint8_t WRITE_CACHE[BLOCK_SIZE];
 __dma_aligned uint8_t key_cache[MAX_KEY_SIZE];
 //__dma_aligned uint8_t STR_CACHE[BLOCK_SIZE];
 __mram_noinit uint8_t DPU_BUFFER[BUFFER_SIZE];
@@ -30,12 +30,12 @@ __mram_noinit uint32_t RECORDS_LENGTH=0;
 //uint8_t __mram_ptr* ret = &(RECORDS_BUFFER[0]);
 const char *sw_line = "\n\n\n\n\n\n\n";
 #define DEBUG
-fsb_allocator_t allocator;
+//fsb_allocator_t allocator;
 // allocator = fsb_alloc(sizeof(uint8_t), BLOCK_SIZE);
 
-static void initialize_allocator() {
-  allocator = fsb_alloc(sizeof(uint8_t), BLOCK_SIZE);
-}
+// static void initialize_allocator() {
+//   allocator = fsb_alloc(sizeof(uint8_t), BLOCK_SIZE);
+// }
 /*
  * Parse search string from mram
  */ 
@@ -97,21 +97,22 @@ uint32_t roundUp8(uint32_t a) {
 /* write records to mram */
 void writeBackRecords(uint8_t* record_start, uint32_t length) {
     //TODO
-    // memcpy(&(WRITE_CACHE[0]), record_start, length+1);
-    // WRITE_CACHE[length+4] = '\n';
+    uint8_t *ptr = (uint8_t*)roundUp8((uintptr_t)&(WRITE_CACHE[0]));
+    memcpy(ptr, record_start, length+1);
+    ptr[length+2] = '\n';
 
-    uint8_t * data = fsb_get(allocator);
-    uint8_t *ptr = (uint8_t*)roundUp8((uintptr_t)data);
+    // uint8_t * data = fsb_get(allocator);
+    // uint8_t *ptr = (uint8_t*)roundUp8((uintptr_t)data);
 
     // lazy way to solve the src addr has to be 8 byte aligned
-    memcpy(ptr, record_start, length+1);
-    ptr[length+1] = '\n';
+    // memcpy(ptr, record_start, length+1);
+    // ptr[length+1] = '\n';
 
     uint32_t temp = RECORDS_LENGTH;
     RECORDS_LENGTH +=  roundUp8(length+2);
     // uint8_t* adjust_star = (uint8_t*)roundDown8((uintptr_t)record_start);
     mram_write(ptr, &RECORDS_BUFFER[temp], roundUp8(length+2));
-    fsb_free(allocator, data);
+    // fsb_free(allocator, data);
     return;
 }
 
@@ -274,7 +275,7 @@ int main() {
             printf("dpu parse search string failed return\n");
             return 0;
         }
-        initialize_allocator();
+        //initialize_allocator();
     }
 
     if(!parseJson(start_index, offset, cache) ){
