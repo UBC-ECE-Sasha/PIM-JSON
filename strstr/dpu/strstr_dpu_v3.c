@@ -97,9 +97,9 @@ uint32_t roundUp8(uint32_t a) {
 /* write records to mram */
 void writeBackRecords(uint8_t* record_start, uint32_t length) {
     //TODO
-    uint8_t *ptr = (uint8_t*)roundUp8((uintptr_t)&(WRITE_CACHE[0]));
-    memcpy(ptr, record_start, length+1);
-    ptr[length+2] = '\n';
+    // uint8_t *ptr = (uint8_t*)roundUp8((uintptr_t)&(WRITE_CACHE[0]));
+    // memcpy(ptr, record_start, length+1);
+    // ptr[length+2] = '\n';
 
     // uint8_t * data = fsb_get(allocator);
     // uint8_t *ptr = (uint8_t*)roundUp8((uintptr_t)data);
@@ -111,7 +111,7 @@ void writeBackRecords(uint8_t* record_start, uint32_t length) {
     uint32_t temp = RECORDS_LENGTH;
     RECORDS_LENGTH +=  roundUp8(length+2);
     // uint8_t* adjust_star = (uint8_t*)roundDown8((uintptr_t)record_start);
-    mram_write(ptr, &RECORDS_BUFFER[temp], roundUp8(length+2));
+    mram_write(record_start, &RECORDS_BUFFER[temp], roundUp8(length+1));
     // fsb_free(allocator, data);
     return;
 }
