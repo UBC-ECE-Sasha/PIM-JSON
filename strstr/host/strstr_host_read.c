@@ -62,7 +62,7 @@ int main(int argc, char const *argv[])
     start = clock();
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
     end = clock();
-    printf("dpu launch took %g s", ((double) (end - start)) / CLOCKS_PER_SEC);
+    printf("dpu launch took %g s\n", ((double) (end - start)) / CLOCKS_PER_SEC);
 
 #ifdef DPU_LOG_ENABLE 
     {
@@ -70,7 +70,7 @@ int main(int argc, char const *argv[])
         printf("Display DPU Logs\n");
         DPU_FOREACH (set, dpu) {
         printf("DPU#%d:\n", each_dpu);
-        DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
+        //DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
         each_dpu++;
         }
     }
@@ -88,7 +88,6 @@ int main(int argc, char const *argv[])
         putchar(c);
     }
     printf("\n");
-    fclose(fp);
     exit(0);
     return 0;
 }
