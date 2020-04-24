@@ -70,11 +70,12 @@ int main(int argc, char const *argv[])
         printf("Display DPU Logs\n");
         DPU_FOREACH (set, dpu) {
         printf("DPU#%d:\n", each_dpu);
-        //DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
+        DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
         each_dpu++;
         }
     }
 #endif
+#if 0
     uint32_t records_len=0;
     DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&records_len, sizeof(records_len)));
     printf("records length is %d\n", records_len);
@@ -88,6 +89,7 @@ int main(int argc, char const *argv[])
         putchar(c);
     }
     printf("\n");
+#endif
     exit(0);
     return 0;
 }
