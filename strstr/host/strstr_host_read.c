@@ -88,5 +88,7 @@ int main(int argc, char const *argv[])
         putchar(c);
     }
     printf("\n");
+    fclose(fp);
+    exit(0);
     return 0;
 }
