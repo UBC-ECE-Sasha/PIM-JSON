@@ -78,7 +78,7 @@ int main(int argc, char const *argv[])
         }
     }
 #endif
-#if 1
+#if 0
 
     uint32_t records_len=0;
     uint8_t ret[RETURN_RECORDS_SIZE];

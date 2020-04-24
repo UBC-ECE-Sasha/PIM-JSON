@@ -112,6 +112,7 @@ void writeBackRecords(uint8_t* record_start, uint32_t length) {
     RECORDS_LENGTH +=  roundUp8(length+2);
     // uint8_t* adjust_star = (uint8_t*)roundDown8((uintptr_t)record_start);
     mram_write(record_start, &RECORDS_BUFFER[temp], roundUp8(length+1));
+
     // fsb_free(allocator, data);
     return;
 }
@@ -202,7 +203,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 record_count++;
                 if(strstr_org(record_start, record_length)) {
                     // call writeback records TODO
-                    writeBackRecords(record_start, record_length);
+                    //writeBackRecords(record_start, record_length);
                     printf("strstr\n");
                 }
             }
@@ -237,7 +238,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 else {
                     if(record_end -record_start> MIN_RECORDS_LENGTH) {
                         if(strstr_org(record_start, (record_end -record_start))) {
-                            writeBackRecords(record_start, (record_end -record_start));
+                            //writeBackRecords(record_start, (record_end -record_start));
                             printf("second strstr \n");
                         }
                         record_count++;
