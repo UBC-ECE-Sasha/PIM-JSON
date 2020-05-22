@@ -107,7 +107,7 @@ void writeBackRecords(uint8_t* record_start, uint32_t length) {
     // lazy way to solve the src addr has to be 8 byte aligned
     // memcpy(ptr, record_start, length+1);
     // ptr[length+1] = '\n';
-
+    //printRecord(record_start, length);
     uint32_t temp = RECORDS_LENGTH;
     RECORDS_LENGTH +=  roundUp8(length+(uintptr_t)record_start%8);
     // uint8_t* adjust_star = (uint8_t*)roundDown8((uintptr_t)record_start);
@@ -286,6 +286,12 @@ int main() {
             return 0;
         }
         //initialize_allocator();
+        mram_read(&(DPU_BUFFER[0]), cache, BLOCK_SIZE);
+        printRecord(cache, BLOCK_SIZE/2);
+        return 0;
+    }
+    else {
+        return 0;
     }
 
     if(!parseJson(start_index, offset, cache) ){

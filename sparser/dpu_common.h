@@ -12,8 +12,9 @@
 #define RECORDS_BUFFER dpu_mram_ret_buffer
 #define RECORDS_LENGTH dpu_records_len
 
-#define BUFFER_SIZE (4 << 20)
+#define BUFFER_SIZE (1 << 20)
 #define MAX_KEY_SIZE 32
 #define RETURN_RECORDS_SIZE (1<<20)
+#define MAX_RECORD_SIZE 2048
 
 #endif /* __DPU_COMMON_H__ */
