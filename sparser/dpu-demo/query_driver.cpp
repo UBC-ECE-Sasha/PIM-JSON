@@ -200,7 +200,7 @@ void process_query(char *raw, long length, int query_index) {
 
 	bench_sparser_engine(raw, length, jquery, &d, query_index);
 	//bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
-	multi_dpu_test(raw);
+	multi_dpu_test(raw, length);
 
 	json_query_t query = demo_queries[query_index]();
 	bench_rapidjson_engine(raw, length, query, query_index);

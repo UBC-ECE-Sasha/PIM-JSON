@@ -36,7 +36,7 @@
  }
 
 
-void multi_dpu_test(char *input){
+void multi_dpu_test(char *input, long length){
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
@@ -54,15 +54,16 @@ void multi_dpu_test(char *input){
 
     uint32_t offset = 0;
     unsigned int dpu_id = 0;
-    //char * record_end;
+    char * record_end;
     DPU_FOREACH (set, dpu) {
 
         dpu_error_t status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, BUFFER_SIZE);
         DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
         printf("dpu %d copy memory at offset %d status %d\n", dpu_id, offset, status);
-        offset += BUFFER_SIZE-MAX_RECORD_SIZE;
-        // record_end = (char *)memchr(current_record_start, '\n',
-        //   input_last_byte - current_record_start);
+        offset += BUFFER_SIZE-(MAX_RECORD_SIZE/2);
+        record_end = (char *)memchr(input+offset, '\n',
+          length- offset);
+        offset += record_end-(input+offset) +1;
         dpu_id++;
     }
 
