@@ -89,7 +89,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret){
 #endif 
     int i =0;
     DPU_FOREACH (set, dpu) {
-        DPU_ASSERT(dpu_copy_from_dpu(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[i]), RETURN_RECORDS_SIZE));
+        DPU_ASSERT(dpu_copy_from_dpu(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[0]), RETURN_RECORDS_SIZE));
         i++;
     }
     

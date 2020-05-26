@@ -259,13 +259,19 @@ void process_query(char *raw, long length, int query_index) {
 	ascii_rawfilters_t d = decompose(preds, count);
 
 	bench_sparser_engine(raw, length, jquery, &d, query_index);
-	bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
+	//bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
 	// get the return buffer array ready
-	// char *ret_bufs[NR_DPUS];
-	// for (int i=0; i<NR_DPUS; i++) {
-	// 	ret_bufs[i] = (char*) malloc(RETURN_RECORDS_SIZE);
-	// }
-	// multi_dpu_test(raw, length, ret_bufs);
+	 uint8_t *ret_bufs[NR_DPUS];
+	 for (int i=0; i<NR_DPUS; i++) {
+	 	ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
+	 }
+	multi_dpu_test(raw, length, ret_bufs);
+	for (int k=0; k< RETURN_RECORDS_SIZE-1024; k++){
+		char c;
+		c= ret_bufs[0][k];
+		putchar(c);
+	}
+	printf("\n");
 
 	json_query_t query = demo_queries[query_index]();
 	bench_rapidjson_engine(raw, length, query, query_index);
