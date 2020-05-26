@@ -19,38 +19,45 @@
 #define WRITE_OUT 1
 
 
- dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, const void *src, size_t length){
+dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, const void *src, size_t length){
     dpu_error_t status;
     struct dpu_program_t *program;
     struct dpu_symbol_t symbol;
-
-    // if ((status = dpu_get_common_program(&dpu, &program)) != DPU_OK) {
-    //     return status;
-    // }    
+  
     program = dpu_get_program((dpu.dpu));
     if ((status = dpu_get_symbol(program, symbol_name, &symbol)) != DPU_OK) {
         return status;
     }
-    printf("symbol.size %d\n", symbol.size);
+
     return dpu_copy_to_symbol_dpu(dpu.dpu, symbol, symbol_offset, src, length);
- }
+}
 
 
-void multi_dpu_test(char *input, long length){
+dpu_error_t dpu_copy_from_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, void *dst, size_t length){
+    dpu_error_t status;
+    struct dpu_program_t *program;
+    struct dpu_symbol_t symbol;
+  
+    program = dpu_get_program((dpu.dpu));
+    if ((status = dpu_get_symbol(program, symbol_name, &symbol)) != DPU_OK) {
+        return status;
+    }
+
+    return dpu_copy_from_symbol_dpu(dpu.dpu, symbol, symbol_offset, dst, length);
+}
+
+
+
+void multi_dpu_test(char *input, long length, char** ret){
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
-
-
-
 
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(set, &nr_of_ranks));
     printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
-
-
 
     uint32_t offset = 0;
     unsigned int dpu_id = 0;
@@ -80,8 +87,15 @@ void multi_dpu_test(char *input, long length){
         }
     }
 #endif 
-
+    int i =0;
+    DPU_FOREACH (set, dpu) {
+        DPU_ASSERT(dpu_copy_from_dpu(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[i]), RETURN_RECORDS_SIZE));
+        i++;
+    }
+    
+    DPU_ASSERT(dpu_free(set));
 }
+
 
 void dpu_test(char *input, char* key, char* ret) {
 

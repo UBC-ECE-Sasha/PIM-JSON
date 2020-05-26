@@ -288,11 +288,11 @@ int main() {
         //initialize_allocator();
         mram_read(&(DPU_BUFFER[0]), cache, BLOCK_SIZE);
         printRecord(cache, BLOCK_SIZE/2);
-        return 0;
+        //return 0;
     }
-    else {
-        return 0;
-    }
+    // else {
+    //     return 0;
+    // }
 
     if(!parseJson(start_index, offset, cache) ){
         return 0;
