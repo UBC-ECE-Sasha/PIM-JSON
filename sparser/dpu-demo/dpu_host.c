@@ -48,7 +48,7 @@ dpu_error_t dpu_copy_from_dpu(struct dpu_set_t dpu, const char *symbol_name, uin
 
 
 
-void multi_dpu_test(char *input, long length, char** ret){
+void multi_dpu_test(char *input, long length, uint8_t** ret){
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;

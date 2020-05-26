@@ -159,10 +159,10 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	#endif
 
 	// get the return buffer array ready
-	char *ret_bufs[NR_DPUS];
+	uint8_t *ret_bufs[NR_DPUS];
 	int i=0;
 	for (i=0; i<NR_DPUS; i++) {
-		ret_bufs[i] = (char*) malloc(RETURN_RECORDS_SIZE);
+		ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
 	}
 
 	// process the records
@@ -170,7 +170,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 
 	//process the return buffer
 	for (i=0; i<NR_DPUS; i++) {
-		parse_suceed += process_return_buffer(ret_bufs[i], &cdata);
+		parse_suceed += process_return_buffer((char*)ret_bufs[i], &cdata);
 	}
 
 	double elapsed = time_stop(s);
