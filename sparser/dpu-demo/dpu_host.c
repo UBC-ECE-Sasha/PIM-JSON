@@ -87,13 +87,24 @@ void multi_dpu_test(char *input, long length, uint8_t** ret){
         }
     }
 #endif 
+
+    uint32_t records_len[NR_DPUS];
+
+    //start = clock();
+    //DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&records_len, sizeof(records_len)));
+
     int i =0;
     DPU_FOREACH (set, dpu) {
-        DPU_ASSERT(dpu_copy_from_dpu(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[0]), RETURN_RECORDS_SIZE));
+        DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
+        DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[0]), RETURN_RECORDS_SIZE));
         i++;
     }
-    
-    DPU_ASSERT(dpu_free(set));
+
+    for(int j=0; j< NR_DPUS; j++) {
+        printf("DPU %d\n found record length %d\n", j, records_len[j]);
+    }
+    ret[0][0] = 'c';    
+    // DPU_ASSERT(dpu_free(set));
 }
 
 
