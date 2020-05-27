@@ -3,7 +3,7 @@ CFLAGS=-std=c++11 -march=native -Wall -Wno-unused-function -lstdc++
 INCLUDES=-I../sparser -I../json -I../json/rapidjson/include -I .. -I .
 #NR_TASKLETS ?= 20
 NR_TASKLETS ?= 5
-NR_DPUS ?= 4
+NR_DPUS ?= 80
 HOST_FLAGS := -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS}
 #DPU_FLAGS:= -I/home/larry/workspace/upmem-2020.2.1-Linux-x86_64/include/dpu #-L/home/larry/workspace/upmem-2020.2.1-Linux-x86_64/lib -ldpu 
 DPU_FLAGS:= `dpu-pkg-config --cflags --libs dpu`

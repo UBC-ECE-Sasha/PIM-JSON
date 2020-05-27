@@ -59,19 +59,23 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 
-    uint32_t offset = 0;
+    long offset = 0;
     unsigned int dpu_id = 0;
     char * record_end;
+    printf("total record length is %ld\n", length);
     DPU_FOREACH (set, dpu) {
 
         dpu_error_t status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, BUFFER_SIZE);
         DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
-        printf("dpu %d copy memory at offset %d status %d\n", dpu_id, offset, status);
+        printf("dpu %d copy memory at offset %ld status %d\n", dpu_id, offset, status);
         offset += BUFFER_SIZE-(MAX_RECORD_SIZE/2);
         record_end = (char *)memchr(input+offset, '\n',
           length- offset);
         offset += record_end-(input+offset) +1;
         dpu_id++;
+        if(offset > length) {
+            printf("copied overflow\n");
+        }
     }
 
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
