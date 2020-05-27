@@ -48,7 +48,7 @@ dpu_error_t dpu_copy_from_dpu(struct dpu_set_t dpu, const char *symbol_name, uin
 
 
 
-void multi_dpu_test(char *input, long length, uint8_t** ret){
+void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_len){
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
@@ -88,7 +88,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret){
     }
 #endif 
 
-    uint32_t records_len[NR_DPUS];
+    // uint32_t records_len[NR_DPUS];
 
     //start = clock();
     //DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&records_len, sizeof(records_len)));
@@ -96,7 +96,9 @@ void multi_dpu_test(char *input, long length, uint8_t** ret){
     int i =0;
     DPU_FOREACH (set, dpu) {
         DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[0]), RETURN_RECORDS_SIZE));
+        if(records_len[i] != 0){
+            DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[0]), RETURN_RECORDS_SIZE));
+        }
         i++;
     }
 

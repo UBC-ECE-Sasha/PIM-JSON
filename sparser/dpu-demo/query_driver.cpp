@@ -166,7 +166,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	}
 
 	// process the records
-	multi_dpu_test(data, length, ret_bufs);
+	//multi_dpu_test(data, length, ret_bufs);
 
 	//process the return buffer
 	for (i=0; i<NR_DPUS; i++) {
@@ -262,11 +262,13 @@ void process_query(char *raw, long length, int query_index) {
 	//bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
 	// get the return buffer array ready
 	 uint8_t *ret_bufs[NR_DPUS];
+	 uint32_t records_len[NR_DPUS];
 	 for (int i=0; i<NR_DPUS; i++) {
 	 	ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
 	 }
-	multi_dpu_test(raw, length, ret_bufs);
-	for (int k=0; k< RETURN_RECORDS_SIZE-1024; k++){
+	multi_dpu_test(raw, length, ret_bufs, records_len);
+
+	for (int k=0; k< 1024; k++){
 		char c;
 		c= ret_bufs[0][k];
 		putchar(c);
