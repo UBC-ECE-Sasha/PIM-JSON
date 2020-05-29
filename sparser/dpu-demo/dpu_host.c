@@ -72,6 +72,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     unsigned int dpu_id = 0;
     char * record_end;
     dpu_error_t status;
+    int active_dpu = 0;
     printf("total record length is %ld\n", length);
 
     
@@ -85,15 +86,15 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
             length- offset);
             offset += record_end-(input+offset) +1;
             dpu_id++;
-            // if(offset > length) {
-            //     printf("copied overflow\n");
-            //     break;
-            // }
+
             printRecord(input+offset, (MAX_RECORD_SIZE/2));
+            active_dpu++;
         }
         else if (offset < length) {
             status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, ALIGN((length-offset), 8));
-            DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));            
+            DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));     
+            active_dpu++;
+            printf("dpu copy finished\n");       
         }
         else {
             printf("offset overflowed\n");
@@ -127,17 +128,19 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
 
     int i =0;
     DPU_FOREACH (set, dpu) {
-        DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
-        if(records_len[i] != 0){
-            DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[i]), RETURN_RECORDS_SIZE));
+        if( i < active_dpu) {
+            DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
+            if(records_len[i] != 0){
+                DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[i]), RETURN_RECORDS_SIZE));
+            }
+            i++;
         }
-        i++;
     }
 
-    for(int j=0; j< NR_DPUS; j++) {
+    for(int j=0; j< active_dpu; j++) {
         printf("DPU %d\n found record length %d\n", j, records_len[j]);
     }
-    ret[0][0] = 'c';    
+    // ret[0][0] = 'c';    
     // DPU_ASSERT(dpu_free(set));
 }
 
