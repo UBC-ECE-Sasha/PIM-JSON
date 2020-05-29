@@ -80,18 +80,24 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
         }
     }
 
-    DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+    //DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+	int err = dpu_launch(set, DPU_SYNCHRONOUS);
+	if (err != 0)
+	{
+		DPU_ASSERT(dpu_free(set));
+		return;
+	}
 
 #ifdef DPU_LOG_ENABLE 
-    {
-        unsigned int each_dpu = 0;
-        printf("Display DPU Logs\n");
-        DPU_FOREACH (set, dpu) {
-        printf("DPU#%d:\n", each_dpu);
-        DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
-        each_dpu++;
-        }
-    }
+    // {
+    //     unsigned int each_dpu = 0;
+    //     printf("Display DPU Logs\n");
+    //     DPU_FOREACH (set, dpu) {
+    //     printf("DPU#%d:\n", each_dpu);
+    //     DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
+    //     each_dpu++;
+    //     }
+    // }
 #endif 
 
     // uint32_t records_len[NR_DPUS];

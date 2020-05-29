@@ -213,7 +213,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 if(strstr_org(record_start, record_length)) {
                     // call writeback records TODO
                     writeBackRecords(record_start, record_length);
-                    printf("strstr\n");
+                    //printf("strstr\n");
                 }
             }
 
@@ -248,7 +248,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                     if(record_end -record_start> MIN_RECORDS_LENGTH) {
                         if(strstr_org(record_start, (record_end -record_start))) {
                             writeBackRecords(record_start, (record_end -record_start));
-                            printf("second strstr \n");
+                            //printf("second strstr \n");
                         }
                         record_count++;
                     }
@@ -286,8 +286,8 @@ int main() {
             return 0;
         }
         //initialize_allocator();
-        mram_read(&(DPU_BUFFER[0]), cache, BLOCK_SIZE);
-        printRecord(cache, BLOCK_SIZE/2);
+        //mram_read(&(DPU_BUFFER[0]), cache, BLOCK_SIZE);
+        //printRecord(cache, BLOCK_SIZE/2);
         //return 0;
     }
     // else {
@@ -298,5 +298,5 @@ int main() {
         return 0;
     }
 
-    printf("dpu done\n");
+    //printf("dpu done\n");
 }
