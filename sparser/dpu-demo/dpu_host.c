@@ -48,7 +48,14 @@ dpu_error_t dpu_copy_from_dpu(struct dpu_set_t dpu, const char *symbol_name, uin
     return dpu_copy_from_symbol_dpu(dpu.dpu, symbol, symbol_offset, dst, length);
 }
 
+void printRecord(char* record_start, uint32_t length) {
+    for(uint32_t i =0; i< length; i++){
+        printf("%c", record_start[i]);
+    }
 
+    printf("\n");
+    printf("\n");
+}
 
 void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_len){
     struct dpu_set_t set, dpu;
@@ -66,6 +73,8 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     char * record_end;
     dpu_error_t status;
     printf("total record length is %ld\n", length);
+
+    
     DPU_FOREACH (set, dpu) {
         if(offset + BUFFER_SIZE < length) {      
             status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, BUFFER_SIZE);
@@ -80,10 +89,14 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
             //     printf("copied overflow\n");
             //     break;
             // }
+            printRecord(input+offset, (MAX_RECORD_SIZE/2));
         }
         else if (offset < length) {
             status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, ALIGN((length-offset), 8));
             DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));            
+        }
+        else {
+            printf("offset overflowed\n");
         }
     }
 
