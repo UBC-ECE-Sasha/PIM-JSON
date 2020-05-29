@@ -123,10 +123,14 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 					putchar(c);
 			}
 			printf("\n");
-			#endif 			
-			if (_rapidjson_parse_callback(current_record_start, cdata)) {
-					n_succeed++;
-			}					
+			#endif
+			// magic number
+			if( record_length < MAX_RECORD_SIZE*2) {
+				if (_rapidjson_parse_callback(current_record_start, cdata)) {
+						n_succeed++;
+				}	
+			} 			
+				
 			
 			// Update to point to the next record. The top of the loop will update the remaining variables.
 			current_record_start = current_record_end + 1;
