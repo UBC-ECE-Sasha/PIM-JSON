@@ -17,6 +17,8 @@
 #define DPU_BINARY "build/sparser_dpu"
 #define DPU_LOG_ENABLE 1
 #define WRITE_OUT 1
+#define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
+
 
 
 dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, const void *src, size_t length){
@@ -62,10 +64,11 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     long offset = 0;
     unsigned int dpu_id = 0;
     char * record_end;
+    dpu_error_t status;
     printf("total record length is %ld\n", length);
     DPU_FOREACH (set, dpu) {
         if(offset + BUFFER_SIZE < length) {      
-            dpu_error_t status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, BUFFER_SIZE);
+            status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, BUFFER_SIZE);
             DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
             printf("dpu %d copy memory at offset %ld status %d\n", dpu_id, offset, status);
             offset += BUFFER_SIZE-(MAX_RECORD_SIZE/2);
@@ -73,10 +76,14 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
             length- offset);
             offset += record_end-(input+offset) +1;
             dpu_id++;
-            if(offset > length) {
-                printf("copied overflow\n");
-                break;
-            }
+            // if(offset > length) {
+            //     printf("copied overflow\n");
+            //     break;
+            // }
+        }
+        else if (offset < length) {
+            status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, ALIGN((length-offset), 8));
+            DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));            
         }
     }
 
