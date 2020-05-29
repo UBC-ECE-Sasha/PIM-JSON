@@ -115,17 +115,18 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 				current_record_end = input_last_byte;
 			}
 			size_t record_length = current_record_end - current_record_start;
-			#if DEBUG
-			printf("cpu record length %d\n", record_length);
-			for (int k=0; k< record_length; k++){
-					char c;
-					c= current_record_start[k];
-					putchar(c);
-			}
-			printf("\n");
-			#endif
+
 			// magic number
-			if( record_length < MAX_RECORD_SIZE*2) {
+			if( record_length < MAX_RECORD_SIZE+1) {
+				#if DEBUG
+				printf("cpu record length %d\n", record_length);
+				for (int k=0; k< record_length; k++){
+						char c;
+						c= current_record_start[k];
+						putchar(c);
+				}
+				printf("\n");
+				#endif				
 				if (_rapidjson_parse_callback(current_record_start, cdata)) {
 						n_succeed++;
 				}	
