@@ -211,15 +211,17 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
 
             }
             else {
-                input_length = ALIGN((input_end-curr_start), 8);
+                input_length = BUFFER_SIZE;
                 char* src = (char*) malloc(BUFFER_SIZE);
                 if(!memcpy(src, curr_start, (input_end-curr_start))) {
                      printf("memory copy failed\n");
                 }
-                if( dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)src, BUFFER_SIZE) != 0 ) {
+                if(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)src, BUFFER_SIZE, DPU_PRIMARY_MRAM)){
                     printf("dpu id %d copy memory failed at %ld\n",dpu_id, curr_start-input);
                 }
-                DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
+                else {
+                    DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
+                }
                 printf("dpu copy finished\n");
                 curr_start = input_end+1;
             }
