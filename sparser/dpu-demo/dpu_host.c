@@ -187,7 +187,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     DPU_ASSERT(dpu_copy_to(set, XSTR(RECORDS_BUFFER), 0, &dpu_mram_ret_buffer_start, sizeof(uint32_t)));
 
     clock_t start, end;
-    long copied_length;
+    long copied_length =0;
     double duration = 0.0;
 
     DPU_FOREACH (set, dpu) {
@@ -209,6 +209,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
                     printf("dpu id %d failed\n",dpu_id);
                 }
                 printf("host %d took %g s for coping %d total copied\n", dpu_id, duration, BUFFER_SIZE, copied_length);
+                copied_length +=BUFFER_SIZE;
             }
             else {
                 input_length = BUFFER_SIZE;
@@ -224,6 +225,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
                 }
                 printf("dpu copy finished\n");
                 curr_start = input_end+1;
+                copied_length +=(input_end-curr_start);
             }
         }
         dpu_id++;
