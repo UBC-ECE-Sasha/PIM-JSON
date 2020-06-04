@@ -175,7 +175,19 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	// process the records
 	//multi_dpu_test(data, length, ret_bufs);
 	multi_dpu_test(data, length, ret_bufs, records_len);
-
+#if 0
+	for(int d=0; d< NR_DPUS; d++) {
+		if(records_len[d] !=0) {
+		printf("dpu %d found : \n", d);
+		for (int k=0; k< records_len[d]; k++){
+			char c;
+			c= ret_bufs[d][k];
+			putchar(c);
+		}
+		printf("\n");
+		}
+	}
+#endif
 	//process the return buffer
 	for (i=0; i<NR_DPUS; i++) {
 		parse_suceed += process_return_buffer((char*)ret_bufs[i], records_len[i], &cdata);
@@ -183,45 +195,6 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 
 	double elapsed = time_stop(s);
   	printf("RapidJSON with Sparser plus DPU:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", parse_suceed, elapsed);
-
-#if 0
-  ret_buf = (char*) malloc(RETURN_RECORDS_SIZE);
-
-	dpu_test(data, query->queries[0], ret_buf);
-	double elapsed = time_stop(s);
-	/// Last byte in the data.
-	char *input_last_byte = ret_buf + RETURN_RECORDS_SIZE - 1;
-	// Points to the end of the current record.
-	char *current_record_end;
-	// Points to the start of the current record.
-	char *current_record_start;
-
-	current_record_start = ret_buf;
-	while (current_record_start < input_last_byte) {
-		record_count++;
-			current_record_end = (char *)memchr(current_record_start, '\n',
-          input_last_byte - current_record_start);		
-			if (!current_record_end) {
-				current_record_end = input_last_byte;
-			}
-			size_t record_length = current_record_end - current_record_start;
-			#if DEBUG
-			printf("cpu record length %d\n", record_length);
-			for (int k=0; k< record_length; k++){
-					char c;
-					c= current_record_start[k];
-					putchar(c);
-			}
-			printf("\n");
-			#endif 			
-			if (_rapidjson_parse_callback(current_record_start, &cdata)) {
-					parse_suceed++;
-			}					
-			
-			// Update to point to the next record. The top of the loop will update the remaining variables.
-			current_record_start = current_record_end + 1;
-	}
-#endif
 }
 
 
@@ -267,26 +240,27 @@ void process_query(char *raw, long length, int query_index) {
 	ascii_rawfilters_t d = decompose(preds, count);
 
 	bench_sparser_engine(raw, length, jquery, &d, query_index);
-	//bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
-	// get the return buffer array ready
+	bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
+#if MEM
 	 uint8_t *ret_bufs[NR_DPUS];
 	 uint32_t records_len[NR_DPUS];
 	 for (int i=0; i<NR_DPUS; i++) {
 	 	ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
 	 }
-	// multi_dpu_test(raw, length, ret_bufs, records_len);
 	multi_dpu_test(raw, length, ret_bufs, records_len);
-	// for(int d=0; d< NR_DPUS; d++) {
-	// 	if(records_len[d] !=0) {
-	// 	for (int k=0; k< records_len[d]; k++){
-	// 		char c;
-	// 		c= ret_bufs[d][k];
-	// 		putchar(c);
-	// 	}
-	// 	printf("\n");
-	// 	}
-	// }
-
+#endif
+#if DEBUG
+	for(int d=0; d< NR_DPUS; d++) {
+		if(records_len[d] !=0) {
+		for (int k=0; k< records_len[d]; k++){
+			char c;
+			c= ret_bufs[d][k];
+			putchar(c);
+		}
+		printf("\n");
+		}
+	}
+#endif
 
 
 	json_query_t query = demo_queries[query_index]();

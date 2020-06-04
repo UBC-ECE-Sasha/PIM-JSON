@@ -53,7 +53,6 @@ bool parseKey() {
         printf("invalid key\n");
         return false;
     }
-  
 }
 
 void printRecord(uint8_t* record_start, uint32_t length) {
@@ -132,7 +131,8 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
     star[tasklet_id] = &(DPU_BUFFER[start]);
     uint8_t __mram_ptr * max_addr =  &DPU_BUFFER[BUFFER_SIZE-1];
     uint32_t initial_offset = 0;
-
+    
+    printf("tasklet %d start index %x", tasklet_id, ((uintptr_t))star[tasklet_id]);
     mram_read(star[tasklet_id], cache, BLOCK_SIZE);
 
 
