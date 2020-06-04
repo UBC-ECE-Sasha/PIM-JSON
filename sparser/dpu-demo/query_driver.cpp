@@ -276,16 +276,16 @@ void process_query(char *raw, long length, int query_index) {
 	 }
 	// multi_dpu_test(raw, length, ret_bufs, records_len);
 	multi_dpu_test(raw, length, ret_bufs, records_len);
-	for(int d=0; d< NR_DPUS; d++) {
-		if(records_len[d] !=0) {
-		for (int k=0; k< records_len[d]; k++){
-			char c;
-			c= ret_bufs[d][k];
-			putchar(c);
-		}
-		printf("\n");
-		}
-	}
+	// for(int d=0; d< NR_DPUS; d++) {
+	// 	if(records_len[d] !=0) {
+	// 	for (int k=0; k< records_len[d]; k++){
+	// 		char c;
+	// 		c= ret_bufs[d][k];
+	// 		putchar(c);
+	// 	}
+	// 	printf("\n");
+	// 	}
+	// }
 
 
 

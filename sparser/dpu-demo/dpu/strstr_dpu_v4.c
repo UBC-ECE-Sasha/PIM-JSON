@@ -174,7 +174,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                     // call writeback records TODO
                     writeBackRecords(record_start, record_length);
                     
-                    printf("strstr\n");
+                    //printf("strstr\n");
                 }
             }
             #if 1
@@ -210,7 +210,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                     if(record_end -record_start> MIN_RECORDS_LENGTH) {
                         if(strstr_org(record_start, (record_end -record_start))) {
                             writeBackRecords(record_start, (record_end -record_start));
-                            printf("second strstr \n");
+                            //printf("second strstr \n");
                         }
                         record_count++;
                     }
@@ -248,7 +248,7 @@ int main() {
             printf("dpu parse search string failed return\n");
             return 0;
         }
-        printf("input %x write back %x\n", (uintptr_t)DPU_BUFFER, (uintptr_t)RECORDS_BUFFER);
+        //printf("input %x write back %x\n", (uintptr_t)DPU_BUFFER, (uintptr_t)RECORDS_BUFFER);
     }
 #if 1
     if(!parseJson(start_index, offset, cache) ){

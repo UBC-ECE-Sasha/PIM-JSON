@@ -186,13 +186,19 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     DPU_ASSERT(dpu_copy_to(set, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
     DPU_ASSERT(dpu_copy_to(set, XSTR(RECORDS_BUFFER), 0, &dpu_mram_ret_buffer_start, sizeof(uint32_t)));
 
+    clock_t start, end;
+    double duration = 0.0;
+
     DPU_FOREACH (set, dpu) {
         if(curr_start < input_end) {
             if(curr_start+ BUFFER_SIZE < input_end) {
                 input_length = BUFFER_SIZE;
                 DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
+                start = clock();
                 DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)curr_start, BUFFER_SIZE, DPU_PRIMARY_MRAM));
-
+                end = clock();
+                duration = ((double) (end - start)) / CLOCKS_PER_SEC;
+                printf("host took %g s for coping %d\n", duration, BUFFER_SIZE);
                 // if(dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)curr_start, BUFFER_SIZE) != 0){
                 //     printf("dpu id %d copy memory failed at %ld\n",dpu_id, curr_start-input);
                 // }
@@ -215,6 +221,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
         }
         dpu_id++;
     }
+  
 
 //	int err = dpu_launch(set, DPU_SYNCHRONOUS);
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
