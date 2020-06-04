@@ -56,7 +56,7 @@ void printRecord(char* record_start, uint32_t length) {
     printf("\n");
     printf("\n");
 }
-
+#if 0
 void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_len){
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
@@ -76,10 +76,13 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     printf("total record length is %ld\n", length);
 
     
+    DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
     DPU_FOREACH (set, dpu) {
-        if(offset + BUFFER_SIZE < length) {      
+        if(offset + BUFFER_SIZE < length) {
+    
+            DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
             status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, BUFFER_SIZE);
-            DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
+           
             printf("dpu %d copy memory at offset %ld status %d\n", dpu_id, offset, status);
             offset += BUFFER_SIZE-(MAX_RECORD_SIZE/2);
             record_end = (char *)memchr(input+offset, '\n',
@@ -94,7 +97,8 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
             status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, ALIGN((length-offset), 8));
             DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));     
             active_dpu++;
-            printf("dpu copy finished\n");       
+            printf("dpu copy finished\n");
+            offset = length+1;       
         }
         else {
             printf("offset overflowed\n");
@@ -143,6 +147,109 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     // ret[0][0] = 'c';    
     // DPU_ASSERT(dpu_free(set));
 }
+#endif
+
+
+
+char* get_curr_start(char* start, char* end) {
+    long offset = BUFFER_SIZE-(MAX_RECORD_SIZE/2);
+    char * curr = memchr(start+offset, '\n', end-start);
+    if(curr != NULL) {
+        return curr+1;
+    }
+    return NULL;
+}
+
+void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_len){
+    struct dpu_set_t set, dpu;
+    uint32_t nr_of_dpus;
+    uint32_t nr_of_ranks;
+
+    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
+    DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
+    DPU_ASSERT(dpu_get_nr_ranks(set, &nr_of_ranks));
+    printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
+    DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
+
+    //long offset = 0;
+    unsigned int dpu_id = 0;
+    char* curr_start = input;
+    char* input_end = input+length;
+    //dpu_error_t status;
+    uint32_t input_length = 0;
+    printf("total record length is %ld\n", length);
+    uint32_t dpu_mram_buffer_start = 1024 * 1024;
+    uint32_t dpu_mram_ret_buffer_start = ALIGN(dpu_mram_buffer_start + BUFFER_SIZE + 64, 64);
+
+    // copy the key in for all DPUs - hardcoded now
+    DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
+    DPU_ASSERT(dpu_copy_to(set, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
+    DPU_ASSERT(dpu_copy_to(set, XSTR(RECORDS_BUFFER), 0, &dpu_mram_ret_buffer_start, sizeof(uint32_t)));
+
+    DPU_FOREACH (set, dpu) {
+        if(curr_start < input_end) {
+            if(curr_start+ BUFFER_SIZE < input_end) {
+                input_length = BUFFER_SIZE;
+                DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
+                DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)curr_start, BUFFER_SIZE, DPU_PRIMARY_MRAM));
+
+                // if(dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)curr_start, BUFFER_SIZE) != 0){
+                //     printf("dpu id %d copy memory failed at %ld\n",dpu_id, curr_start-input);
+                // }
+
+                curr_start = get_curr_start(curr_start, input_end);
+                if(curr_start == NULL) {
+                    printf("dpu id %d failed\n",dpu_id);
+                }
+
+            }
+            else {
+                input_length = ALIGN((input_end-curr_start), 8);
+                if( dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)curr_start, input_length) != 0 ) {
+                    printf("dpu id %d copy memory failed at %ld\n",dpu_id, curr_start-input);
+                }
+                DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
+                printf("dpu copy finished\n");
+                curr_start = input_end+1;
+            }
+        }
+        dpu_id++;
+    }
+
+//	int err = dpu_launch(set, DPU_SYNCHRONOUS);
+    DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
+	// if (err != 0)
+	// {
+	// 	DPU_ASSERT(dpu_free(set));
+    //     printf("dpu launch failed\n");
+	// 	return;
+	// }
+#if 1 
+    {
+        unsigned int each_dpu = 0;
+        printf("Display DPU Logs\n");
+        DPU_FOREACH (set, dpu) {
+        printf("DPU#%d:\n", each_dpu);
+        DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
+        each_dpu++;
+        }
+    }
+#endif 
+    int i =0;
+    DPU_FOREACH (set, dpu) {
+        DPU_ASSERT(dpu_copy_from(dpu, "output_length", 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
+        if(records_len[i] != 0){
+            //DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[i]), RETURN_RECORDS_SIZE));
+            DPU_ASSERT(dpu_copy_from_mram(dpu.dpu, (uint8_t*)(ret[i]), dpu_mram_ret_buffer_start, ALIGN(records_len[i]+32, 8), DPU_PRIMARY_MRAM));
+        }
+        i++;
+    }
+
+    for(int j=0; j< NR_DPUS; j++) {
+        printf("DPU %d\n found record length %d\n", j, records_len[j]);
+    }
+}
+
 
 
 void dpu_test(char *input, char* key, char* ret) {

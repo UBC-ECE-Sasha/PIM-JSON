@@ -3,7 +3,7 @@ CFLAGS=-std=c++11 -march=native -Wall -Wno-unused-function -lstdc++
 INCLUDES=-I../sparser -I../json -I../json/rapidjson/include -I .. -I .
 #NR_TASKLETS ?= 20
 NR_TASKLETS ?= 5
-NR_DPUS ?= 72
+NR_DPUS ?= 3
 HOST_FLAGS := -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS}
 #DPU_FLAGS:= -I/home/larry/workspace/upmem-2020.2.1-Linux-x86_64/include/dpu #-L/home/larry/workspace/upmem-2020.2.1-Linux-x86_64/lib -ldpu 
 DPU_FLAGS:= `dpu-pkg-config --cflags --libs dpu`
@@ -23,7 +23,7 @@ sparser:
 	cc -g $(INCLUDES) -O $(CFLAGS) -DNR_DPUS=${NR_DPUS} -c -o query_driver.o  query_driver.cpp
 
 dpu:
-	dpu-upmem-dpurte-clang -Wall -Wextra -Werror -g -I ../dpu_common.h -O -DNR_TASKLETS=${NR_TASKLETS} -o ${DPU_TARGET} dpu/strstr_dpu_v3.c
+	dpu-upmem-dpurte-clang -Wall -Wextra -Werror -g -I ../dpu_common.h -O -DNR_TASKLETS=${NR_TASKLETS} -o ${DPU_TARGET} dpu/strstr_dpu_v4.c
 
 dpu_host:
 	$(CC) -Wall -Wextra -Werror -g -I ../ -I . -O -std=c11 ${DPU_FLAGS} ${HOST_FLAGS} -c -o dpu_host.o dpu_host.c
