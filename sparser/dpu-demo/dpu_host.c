@@ -182,15 +182,15 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     uint32_t dpu_mram_ret_buffer_start = ALIGN(dpu_mram_buffer_start + BUFFER_SIZE + 64, 64);
 
     // copy the key in for all DPUs - hardcoded now
-    DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
-    DPU_ASSERT(dpu_copy_to(set, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
-    DPU_ASSERT(dpu_copy_to(set, XSTR(RECORDS_BUFFER), 0, &dpu_mram_ret_buffer_start, sizeof(uint32_t)));
-
     clock_t start, end;
     long copied_length =0;
     double duration = 0.0;
 
     DPU_FOREACH (set, dpu) {
+    DPU_ASSERT(dpu_copy_to(dpu, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
+    DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
+    DPU_ASSERT(dpu_copy_to(dpu, XSTR(RECORDS_BUFFER), 0, &dpu_mram_ret_buffer_start, sizeof(uint32_t)));
+
         if(curr_start < input_end) {
             if(curr_start+ BUFFER_SIZE < input_end) {
                 input_length = BUFFER_SIZE;
@@ -208,10 +208,11 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
                 if(curr_start == NULL) {
                     printf("dpu id %d failed\n",dpu_id);
                 }
-                printf("host %d took %g s for coping %d total copied\n", dpu_id, duration, BUFFER_SIZE, copied_length);
+                printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, duration, BUFFER_SIZE, copied_length);
                 copied_length +=BUFFER_SIZE;
             }
             else {
+#if 1
                 input_length = BUFFER_SIZE;
                 char* src = (char*) malloc(BUFFER_SIZE);
                 if(!memcpy(src, curr_start, (input_end-curr_start))) {
@@ -226,6 +227,8 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
                 printf("dpu copy finished\n");
                 curr_start = input_end+1;
                 copied_length +=(input_end-curr_start);
+                printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, duration, BUFFER_SIZE, copied_length);
+#endif
             }
         }
         dpu_id++;
