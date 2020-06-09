@@ -21,12 +21,22 @@ __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
 __dma_aligned uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
 __dma_aligned uint8_t key_cache[MAX_KEY_SIZE];
+unsigned int key = 0x0;
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host __mram_ptr uint8_t *RECORDS_BUFFER;
 __mram_noinit uint8_t KEY[MAX_KEY_SIZE];
 uint8_t __mram_ptr* star[NR_TASKLETS];
 uint8_t __mram_ptr* end_pos[NR_TASKLETS];
 
+
+
+void shift32(uint8_t* start, unsigned int *a){
+
+    *a |= ((start[0] & 0xFF) << 24);
+    *a |= ((start[1] & 0xFF) << 16);
+    *a |= ((start[2] & 0xFF) << 8);
+    *a |= ((start[3] & 0xFF));
+}
 
 
 /*
@@ -39,6 +49,7 @@ bool parseKey() {
     if(end != NULL) {
         *((char*)(end)) = '\0';
         printf("valid key\n");
+        shift32(key_cache, &key);
         return true;
     }
     else {
@@ -102,14 +113,6 @@ bool strstr_org(uint8_t* record_start, uint32_t length) {
 }
 
 
-void shift32(uint8_t* start, unsigned int *a){
-
-    *a |= ((start[0] & 0xFF) << 24);
-    *a |= ((start[1] & 0xFF) << 16);
-    *a |= ((start[2] & 0xFF) << 8);
-    *a |= ((start[3] & 0xFF));
-}
-
 
 bool strstr_comb4(uint8_t* record_start, uint32_t length) {
     int i =0;
@@ -121,7 +124,6 @@ bool strstr_comb4(uint8_t* record_start, uint32_t length) {
         unsigned int a = 0;
         unsigned int b = 0;
         shift32(&(record_start[i]), &a);
-        shift32(key_cache, &b);
         // printf("a 0x%x\n", a);
         // printf("b 0x%x\n", b);
 
