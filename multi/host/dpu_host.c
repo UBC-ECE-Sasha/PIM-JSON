@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "dpu_host.h"
 #include "common.h"
@@ -182,10 +183,14 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     uint32_t dpu_mram_ret_buffer_start = ALIGN(dpu_mram_buffer_start + BUFFER_SIZE + 64, 64);
 
     // copy the key in for all DPUs - hardcoded now
-    clock_t start, end;
+    // clock_t start, end;
     long copied_length =0;
     double duration = 0.0;
-start = clock();
+    struct timeval start;
+	struct timeval end;
+
+    gettimeofday(&start, NULL);
+
     DPU_FOREACH (set, dpu) {
     DPU_ASSERT(dpu_copy_to(dpu, XSTR(KEY), 0, (unsigned char*)"aaba\n", MAX_KEY_SIZE));
     DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
@@ -232,15 +237,19 @@ start = clock();
         }
         dpu_id++;
     }
-    end = clock();
-    duration = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, duration, BUFFER_SIZE, copied_length);
+	gettimeofday(&end, NULL);
+    double start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+
+    printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, end_time - start_time, BUFFER_SIZE, copied_length);
 
 //	int err = dpu_launch(set, DPU_SYNCHRONOUS);
-    start = clock();
+    gettimeofday(&start, NULL);
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
-    end = clock();
-    printf("dpu launch took %g s\n",((double) (end - start)) / CLOCKS_PER_SEC);
+    gettimeofday(&end, NULL);
+    start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("dpu launch took %g s\n", end_time - start_time);
 	// if (err != 0)
 	// {
 	// 	DPU_ASSERT(dpu_free(set));
@@ -259,7 +268,7 @@ start = clock();
     }
 #endif 
     int i =0;
-    start = clock();
+    gettimeofday(&start, NULL);
     DPU_FOREACH (set, dpu) {
         DPU_ASSERT(dpu_copy_from(dpu, "output_length", 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
         if(records_len[i] != 0){
@@ -268,8 +277,10 @@ start = clock();
         }
         i++;
     }
-    end = clock();
-    printf("dpu copy back took %g s\n",((double) (end - start)) / CLOCKS_PER_SEC);
+    gettimeofday(&end, NULL);
+    start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("dpu copy back took %g s\n", end_time - start_time);
 #if DEBUG
     for(int j=0; j< NR_DPUS; j++) {
         printf("DPU %d\n found record length %d\n", j, records_len[j]);
