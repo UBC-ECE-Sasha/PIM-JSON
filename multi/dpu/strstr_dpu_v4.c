@@ -116,18 +116,19 @@ bool strstr_org(uint8_t* record_start, uint32_t length) {
 
 bool strstr_comb4(uint8_t* record_start, uint32_t length) {
     int i =0;
+    unsigned int res;
+    unsigned int a = 0;
     do {
         if(length -i < 4) {
             break;
         }
-        unsigned int res;
-        unsigned int a = 0;
-        unsigned int b = 0;
+
+        // unsigned int b = 0;
         shift32(&(record_start[i]), &a);
         // printf("a 0x%x\n", a);
         // printf("b 0x%x\n", b);
 
-        __builtin_cmpb4_rrr(res, a, b);  
+        __builtin_cmpb4_rrr(res, a, key);  
         // printf("result 0x%x\n", res);
         if((res^0x01010101) == 0) {
             return true;
