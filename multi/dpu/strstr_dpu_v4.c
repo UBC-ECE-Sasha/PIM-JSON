@@ -31,13 +31,20 @@ uint8_t __mram_ptr* end_pos[NR_TASKLETS];
 
 
 void shift32(uint8_t* start, unsigned int *a){
-
+    *a = 0;
     *a |= ((start[0] & 0xFF) << 24);
     *a |= ((start[1] & 0xFF) << 16);
     *a |= ((start[2] & 0xFF) << 8);
     *a |= ((start[3] & 0xFF));
 }
 
+void shift_same(uint8_t* start, unsigned int *a){
+    *a = 0;
+    *a |= (start[0]<< 24);
+    *a |= (start[0]<< 16);
+    *a |= (start[0]<< 8);
+    *a |= (start[0]);
+}
 
 /*
  * Parse search string from mram
@@ -48,8 +55,8 @@ bool parseKey() {
 
     if(end != NULL) {
         *((char*)(end)) = '\0';
-        printf("valid key\n");
-        shift32(key_cache, &key);
+        shift32((uint8_t*)key_cache, &key);
+        printf("valid key 0x%x\n", key);
         return true;
     }
     else {
@@ -118,15 +125,16 @@ bool strstr_comb4(uint8_t* record_start, uint32_t length) {
     int i =0;
     unsigned int res;
     unsigned int a = 0;
+
     do {
         if(length -i < 4) {
             break;
         }
 
         // unsigned int b = 0;
-        shift32(&(record_start[i]), &a);
-        // printf("a 0x%x\n", a);
-        // printf("b 0x%x\n", b);
+        shift32(record_start+i, &a);
+        // printf("a 0x%x %c%c%c%c\n", a, record_start[i], record_start[i+1], record_start[i+2], record_start[i+3]);
+        // printf("b 0x%x\n", key);
 
         __builtin_cmpb4_rrr(res, a, key);  
         // printf("result 0x%x\n", res);
@@ -138,6 +146,59 @@ bool strstr_comb4(uint8_t* record_start, uint32_t length) {
 
     return false;
 }
+
+
+static int find_next_set_bit(unsigned int res, int start) {
+    if(start == 3) {
+        return 4;
+    }
+    
+    for (int i=start; i< 4; i++){
+        if(res & (0x01<<((3-i)*8))){
+            return i;
+        }
+    }
+
+    return 4;
+}
+
+
+
+bool strstr_comb4_op(uint8_t* record_start, uint32_t length) {
+    int i = 0;
+    int j = 0; 
+    unsigned int res = 0;
+    unsigned int a = 0;
+    unsigned int b = 0;
+    int next =0;
+
+    do {
+        if(length -i < 4) {
+            break;
+        }
+        for(j=0; j< 4; j++) {
+            shift32(record_start+i, &a);
+            shift_same(key_cache+j, &b);
+            __builtin_cmpb4_rrr(res, a, b);
+            // jth byte matches
+            if(res & (0x01<<((3-j)*8))){
+                continue;
+            }
+            else {
+                next = find_next_set_bit(res, j);
+                break;
+            }
+        }
+        if (j==4) {
+            return true;
+        }
+        i += next;
+    } while (i < (int) length);
+
+    return false;
+}
+
+
 
 
 bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
@@ -313,14 +374,15 @@ int main() {
         }
         //printf("input %x write back %x\n", (uintptr_t)DPU_BUFFER, (uintptr_t)RECORDS_BUFFER);
     }
-    // char buf[20] = "abcaabadef";
-    // if(strstr_comb4((uint8_t*)buf, strlen(buf))) {
-    //     printf("strstr true\n");
-    // }
-    // else{ 
-    //     printf("strstr false\n");
-    // }
-
+#if 1
+    char buf[20] = "abcaabadef";
+    if(strstr_comb4_op((uint8_t*)buf, strlen(buf))) {
+        printf("strstr true\n");
+    }
+    else{ 
+        printf("strstr false\n");
+    }
+#endif
 #if 1
     if(!parseJson(start_index, offset, cache) ){
         return 0;
