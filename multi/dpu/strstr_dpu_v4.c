@@ -15,6 +15,7 @@
 #define BLOCK_SIZE 2048 
 #define MAX_BODY_ALLOCTE 4096
 #define MIN_RECORDS_LENGTH 8
+#define STRSTR strstr_org
 
 /* global variables */
 __host uint32_t input_length = 0;
@@ -284,7 +285,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
             else {
                 // found a record
                 record_count++;
-                if(strstr_comb4(record_start, record_length)) {
+                if(STRSTR(record_start, record_length)) {
                     // call writeback records TODO
                     //printf("strstr\n");
                     writeBackRecords(record_start, record_length);
@@ -321,7 +322,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 }
                 else {
                     if(record_end -record_start> MIN_RECORDS_LENGTH) {
-                        if(strstr_comb4(record_start, (record_end -record_start))) {
+                        if(STRSTR(record_start, (record_end -record_start))) {
                             //printf("second strstr tasklet %d\n", me());
                             writeBackRecords(record_start, (record_end -record_start));
                             
