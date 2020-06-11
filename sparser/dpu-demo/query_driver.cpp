@@ -14,6 +14,7 @@ extern "C" {
 #include "dpu_common.h"
 }
 #include <assert.h>
+#include <sys/time.h>
 // This is some data we pass to the callback. In this example, we pass a JSON query
 // so our JSON parser can parse the record, and a count to update the number of matching
 // records.
@@ -143,6 +144,8 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 
 
 void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, ascii_rawfilters_t *predicates, int queryno) {
+  struct timeval start;
+  struct timeval end;
   bench_timer_t s = time_start();
   struct callback_data cdata;
 	cdata.count = 0;
@@ -189,13 +192,20 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	}
 #endif
 	//process the return buffer
+	gettimeofday(&start, NULL);
 	for (i=0; i<NR_DPUS; i++) {
-		parse_suceed += process_return_buffer((char*)ret_bufs[i], records_len[i], &cdata);
+		if (records_len[i] != 0) {
+			parse_suceed += process_return_buffer((char*)ret_bufs[i], records_len[i], &cdata);
+		}
 	}
+	gettimeofday(&end, NULL);
 
 	double elapsed = time_stop(s);
   	printf("RapidJSON with Sparser plus DPU:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", parse_suceed, elapsed);
-}
+	double start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("host process (parser) %g s\n", end_time - start_time);
+}	
 
 
 #define OK       0

@@ -9,23 +9,43 @@
 #include <mutex.h>
 #include "../../dpu_common.h"
 #include <alloc.h>
+#include <built_ins.h>
 
 /* dpu marcos */
 #define BLOCK_SIZE 2048 
 #define MAX_BODY_ALLOCTE 4096
 #define MIN_RECORDS_LENGTH 8
+#define STRSTR strstr_org
 
 /* global variables */
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
 __dma_aligned uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
 __dma_aligned uint8_t key_cache[MAX_KEY_SIZE];
+unsigned int key = 0x0;
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host __mram_ptr uint8_t *RECORDS_BUFFER;
 __mram_noinit uint8_t KEY[MAX_KEY_SIZE];
 uint8_t __mram_ptr* star[NR_TASKLETS];
 uint8_t __mram_ptr* end_pos[NR_TASKLETS];
 
+
+
+void shift32(uint8_t* start, unsigned int *a){
+    *a = 0;
+    *a |= ((start[0] & 0xFF) << 24);
+    *a |= ((start[1] & 0xFF) << 16);
+    *a |= ((start[2] & 0xFF) << 8);
+    *a |= ((start[3] & 0xFF));
+}
+
+void shift_same(uint8_t* start, unsigned int *a){
+    *a = 0;
+    *a |= (start[0]<< 24);
+    *a |= (start[0]<< 16);
+    *a |= (start[0]<< 8);
+    *a |= (start[0]);
+}
 
 /*
  * Parse search string from mram
@@ -36,7 +56,8 @@ bool parseKey() {
 
     if(end != NULL) {
         *((char*)(end)) = '\0';
-        printf("valid key\n");
+        shift32((uint8_t*)key_cache, &key);
+        printf("valid key 0x%x\n", key);
         return true;
     }
     else {
@@ -99,150 +120,93 @@ bool strstr_org(uint8_t* record_start, uint32_t length) {
 #endif
 }
 
-#if 0
-bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
-    volatile int tasklet_id = me();
-    star[tasklet_id] = DPU_BUFFER+start;
-    uint8_t __mram_ptr * max_addr =  &DPU_BUFFER[BUFFER_SIZE-1];
-    uint32_t initial_offset = 0;
-
-    mram_read(star[tasklet_id], cache, BLOCK_SIZE);
-
-    /* go to the first \n */
-    if(tasklet_id !=0) {
-        int copy_size = BLOCK_SIZE;
-        mram_read(star[tasklet_id], cache, BLOCK_SIZE);
-        // in case we read over
-        if(star[tasklet_id]+BLOCK_SIZE >= max_addr) {
-            copy_size = BUFFER_SIZE - start;
-        }
-        
-        uint8_t* valid_start  = (uint8_t *)memchr(cache, '\n', copy_size);
-
-        if(valid_start == NULL) {
-            return false;
-        }
-        else {
-            initial_offset = valid_start - cache +1;
-        }
-    }
-    uint8_t __mram_ptr* thread_org_start = NULL;
 
 
-    /* check end position */
-    if(tasklet_id == (NR_TASKLETS-1) ){
-            end_pos[tasklet_id] = max_addr;
-            thread_org_start = star[tasklet_id]+ initial_offset; // TBD ERR
-            //return true;
-    }
-    else {
-        end_pos[tasklet_id] = star[tasklet_id]+ offset-1; // round up? TBD
-    }
-#if 1
-    uint8_t* record_start;
-    uint8_t* record_end;
-    uint32_t record_count =0;
-    uint32_t mram_start = start; // TBD
-    uint32_t read_adjust_offset = BLOCK_SIZE;
-    /* start parsing */
+bool strstr_comb4(uint8_t* record_start, uint32_t length) {
+    int i =0;
+    unsigned int res;
+    unsigned int a = 0;
+
     do {
-        mram_read(star[tasklet_id], cache, BLOCK_SIZE);
-        if(((uintptr_t)star[tasklet_id])%8!=0) {printf("not 8 byte aligned 1 %d\n", ((uintptr_t)star[tasklet_id])); return false;}
-        /* adjust */
-        record_start = cache;
-        if(initial_offset != 0) {
-            record_start += initial_offset;
-            //initial_offset =0
+        if(length -i < 4) {
+            break;
         }
-        // else {
-        //     record_start = cache;
-        // }
 
-        record_end = (uint8_t*) memchr(record_start, '\n', BLOCK_SIZE-initial_offset); // maybe need - ini_offset
-        #if 1
-        uint8_t* block_end = cache+BLOCK_SIZE-1;
-        #endif
-        if(!record_end) {
-            //printf("thread %d could not find newline char returning early stage 2\n", tasklet_id);
-            return false;
-        } 
-        else {
-            uint32_t record_length = record_end - record_start;
-            if(record_length < MIN_RECORDS_LENGTH){
-                //printf("thread %d address shift\n", tasklet_id);
+        // unsigned int b = 0;
+        shift32(record_start+i, &a);
+        // printf("a 0x%x %c%c%c%c\n", a, record_start[i], record_start[i+1], record_start[i+2], record_start[i+3]);
+        // printf("b 0x%x\n", key);
+
+        __builtin_cmpb4_rrr(res, a, key);  
+        // printf("result 0x%x\n", res);
+        if((res^0x01010101) == 0) {
+            return true;
+        }  
+        i += 1;
+    } while(i< (int)length);
+
+    return false;
+}
+
+
+static int find_next_set_bit(unsigned int res, int start) {
+    if(start == 3) {
+        return 4;
+    }
+    
+    for (int i=start; i< 4; i++){
+        if(res & (0x01<<((3-i)*8))){
+            return i;
+        }
+    }
+
+    return 4;
+}
+
+
+
+bool strstr_comb4_op(uint8_t* record_start, uint32_t length) {
+    int i = 0;
+    int j = 0; 
+    unsigned int res = 0;
+    unsigned int a = 0;
+    unsigned int b = 0;
+    int next =0;
+
+    do {
+        if(length -i < 4) {
+            break;
+        }
+        for(j=0; j< 4; j++) {
+            shift32(record_start+i, &a);
+            shift_same(key_cache+j, &b);
+            __builtin_cmpb4_rrr(res, a, b);
+            // jth byte matches
+            if(res & (0x01<<((3-j)*8))){
+                continue;
             }
             else {
-                // found a record
-                record_count++;
-                if(strstr_org(record_start, record_length)) {
-                    // call writeback records TODO
-                    writeBackRecords(record_start, record_length);
-                    
-                    //printf("strstr\n");
-                }
+                next = find_next_set_bit(res, j);
+                break;
             }
-            #if 1
-            uint32_t total = record_length+1;
-            #endif
-            uint32_t max_block_size = BLOCK_SIZE;
-            if(tasklet_id == (NR_TASKLETS-1)){
-                max_block_size = max_addr - thread_org_start;
-            }
-#if 1
-            do {
-                record_start = (uint8_t*)(record_end+1);
-                if(record_start >block_end) {
-                    read_adjust_offset = BLOCK_SIZE;
-                    break;
-                }
-
-                record_end = (uint8_t*)memchr(record_start, '\n', BLOCK_SIZE-total-initial_offset);             
-                // initial_offset=0;
-                if(!record_end) {
-                    read_adjust_offset = record_start-cache;
-                    read_adjust_offset = read_adjust_offset- read_adjust_offset%8; 
-                    if(tasklet_id == (NR_TASKLETS-1)) {
-                        if(read_adjust_offset == 0 ){
-                            // TBD
-                            read_adjust_offset = BLOCK_SIZE;
-                            break;
-                        }
-                    }
-                    break;
-                }
-                else {
-                    if(record_end -record_start> MIN_RECORDS_LENGTH) {
-                        if(strstr_org(record_start, (record_end -record_start))) {
-                            writeBackRecords(record_start, (record_end -record_start));
-                            //printf("second strstr \n");
-                        }
-                        record_count++;
-                    }
-
-                    total += record_end - record_start+1;
-                    read_adjust_offset = BLOCK_SIZE;
-                }
-            //break;
-            }while(total < max_block_size);
-#endif
         }
-        // mram 8 byte aligned + 8 byte aligned 
-        mram_start += read_adjust_offset;
-        star[tasklet_id] = DPU_BUFFER + mram_start;
-        initial_offset=0;
-    }while(star[tasklet_id] < max_addr && star[tasklet_id] < end_pos[tasklet_id]);
-#endif
-    return true;
+        if (j==4) {
+            return true;
+        }
+        i += next;
+    } while (i < (int) length);
+
+    return false;
 }
-#endif
+
+
+
+
 bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
     volatile int tasklet_id = me();
     star[tasklet_id] = &(DPU_BUFFER[start]);
     uint8_t __mram_ptr * max_addr =  &DPU_BUFFER[BUFFER_SIZE-1];
     uint32_t initial_offset = 0;
-
-    mram_read(star[tasklet_id], cache, BLOCK_SIZE);
-    printf("tasklet %d start index %x\n", tasklet_id, (uintptr_t)star[tasklet_id]);
 
     /* go to the first \n */
     if(tasklet_id !=0) {
@@ -256,17 +220,10 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
         uint8_t* valid_start  = (uint8_t *)memchr(cache, '\n', copy_size);
 
         if(valid_start == NULL) {
-            //printf("thread %d could not find newline char returning early\n", tasklet_id);
             return false;
         }
         else {
-            // star[tasklet_id] = &(DPU_BUFFER[start+(valid_start - cache) +1]);
-            // mram_start+=valid_start - cache +1;
-            // if(((uintptr_t)star[tasklet_id])%8!=0){
-            //                         printf("not 8 byte aligned 3\n");
-            //     }
             initial_offset = valid_start - cache +1;
-            //printf("task %d init offset val is %d\n", tasklet_id, initial_offset);
         }
     }
 
@@ -288,9 +245,9 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
     uint8_t* record_end;
     uint32_t record_count =0;
     uint32_t mram_start = start; // TBD
-    uint32_t read_adjust_offset = BLOCK_SIZE;
     /* start parsing */
     do {
+        uint32_t read_adjust_offset = BLOCK_SIZE;
         mram_read(star[tasklet_id], cache, BLOCK_SIZE);
         if(((uintptr_t)star[tasklet_id])%8!=0) {printf("not 8 byte aligned 1 %d\n", ((uintptr_t)star[tasklet_id])); return false;}
         /* adjust */
@@ -312,20 +269,15 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
         } 
         else {
             uint32_t record_length = record_end - record_start;
-            if(record_length < MIN_RECORDS_LENGTH){
-                //printf("thread %d address shift\n", tasklet_id);
-            }
-            else {
+            if(record_length > MIN_RECORDS_LENGTH){
                 // found a record
                 record_count++;
-                if(strstr_org(record_start, record_length)) {
+                if(STRSTR(record_start, record_length)) {
                     // call writeback records TODO
                     //printf("strstr\n");
                     writeBackRecords(record_start, record_length);
-                    
                 }
             }
-
             uint32_t total = record_length+1;
             uint32_t max_block_size = BLOCK_SIZE;
             if(tasklet_id == (NR_TASKLETS-1)){
@@ -355,7 +307,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 }
                 else {
                     if(record_end -record_start> MIN_RECORDS_LENGTH) {
-                        if(strstr_org(record_start, (record_end -record_start))) {
+                        if(STRSTR(record_start, (record_end -record_start))) {
                             //printf("second strstr tasklet %d\n", me());
                             writeBackRecords(record_start, (record_end -record_start));
                             
@@ -380,7 +332,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 break;
             }
         }
-    }while(star[tasklet_id] < max_addr && star[tasklet_id] < end_pos[tasklet_id]);
+    } while(star[tasklet_id] < max_addr && star[tasklet_id] < end_pos[tasklet_id]);
 #endif
     return true;
 
@@ -408,6 +360,15 @@ int main() {
         }
         //printf("input %x write back %x\n", (uintptr_t)DPU_BUFFER, (uintptr_t)RECORDS_BUFFER);
     }
+#if 0
+    char buf[20] = "abcaabadef";
+    if(strstr_comb4_op((uint8_t*)buf, strlen(buf))) {
+        printf("strstr true\n");
+    }
+    else{ 
+        printf("strstr false\n");
+    }
+#endif
 #if 1
     if(!parseJson(start_index, offset, cache) ){
         return 0;

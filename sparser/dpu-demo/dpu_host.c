@@ -10,9 +10,10 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/time.h>
 
 #include "dpu_host.h"
-#include "dpu_common.h"
+#include "../dpu_common.h"
 // dpu binary location TBD
 #define DPU_BINARY "build/sparser_dpu"
 #define DPU_LOG_ENABLE 1
@@ -56,100 +57,6 @@ void printRecord(char* record_start, uint32_t length) {
     printf("\n");
     printf("\n");
 }
-#if 1
-void multi_dpu_test_org(char *input, long length, uint8_t** ret, uint32_t *records_len){
-    struct dpu_set_t set, dpu;
-    uint32_t nr_of_dpus;
-    uint32_t nr_of_ranks;
-
-    DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
-    DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
-    DPU_ASSERT(dpu_get_nr_ranks(set, &nr_of_ranks));
-    printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
-    DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
-
-    long offset = 0;
-    unsigned int dpu_id = 0;
-    char * record_end;
-    dpu_error_t status;
-    int active_dpu = 0;
-    printf("total record length is %ld\n", length);
-
-    
-    DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
-    DPU_FOREACH (set, dpu) {
-        if(offset + BUFFER_SIZE < length) {
-    
-            //DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
-            status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, BUFFER_SIZE);
-           
-            printf("dpu %d copy memory at offset %ld status %d\n", dpu_id, offset, status);
-            offset += BUFFER_SIZE-(MAX_RECORD_SIZE/2);
-            record_end = (char *)memchr(input+offset, '\n',
-            length- offset);
-            offset += record_end-(input+offset) +1;
-            dpu_id++;
-
-            printRecord(input+offset, (MAX_RECORD_SIZE/2));
-            active_dpu++;
-        }
-        else if (offset < length) {
-            status = dpu_copy_to_dpu(dpu, XSTR(DPU_BUFFER), 0, (unsigned char*)input+offset, ALIGN((length-offset), 8));
-            DPU_ASSERT(dpu_copy_to(set, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));     
-            active_dpu++;
-            printf("dpu copy finished\n");
-            offset = length+1;       
-        }
-        else {
-            printf("offset overflowed\n");
-        }
-    }
-
-    //DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
-	int err = dpu_launch(set, DPU_SYNCHRONOUS);
-	if (err != 0)
-	{
-		DPU_ASSERT(dpu_free(set));
-		return;
-	}
-
-#ifdef DPU_LOG_ENABLE 
-    // {
-    //     unsigned int each_dpu = 0;
-    //     printf("Display DPU Logs\n");
-    //     DPU_FOREACH (set, dpu) {
-    //     printf("DPU#%d:\n", each_dpu);
-    //     DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
-    //     each_dpu++;
-    //     }
-    // }
-#endif 
-
-    // uint32_t records_len[NR_DPUS];
-
-    //start = clock();
-    //DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&records_len, sizeof(records_len)));
-
-    int i =0;
-    DPU_FOREACH (set, dpu) {
-        if( i < active_dpu) {
-            DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_LENGTH), 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
-            if(records_len[i] != 0){
-                DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[i]), RETURN_RECORDS_SIZE));
-            }
-            i++;
-        }
-    }
-
-    for(int j=0; j< active_dpu; j++) {
-        printf("DPU %d\n found record length %d\n", j, records_len[j]);
-    }
-    // ret[0][0] = 'c';    
-    // DPU_ASSERT(dpu_free(set));
-}
-#endif
-
-
 
 char* get_curr_start(char* start, char* end) {
     long offset = BUFFER_SIZE-(MAX_RECORD_SIZE/2);
@@ -159,6 +66,7 @@ char* get_curr_start(char* start, char* end) {
     }
     return NULL;
 }
+
 
 void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_len){
     struct dpu_set_t set, dpu;
@@ -182,12 +90,16 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     uint32_t dpu_mram_ret_buffer_start = ALIGN(dpu_mram_buffer_start + BUFFER_SIZE + 64, 64);
 
     // copy the key in for all DPUs - hardcoded now
-    clock_t start, end;
+    // clock_t start, end;
     long copied_length =0;
-    double duration = 0.0;
-start = clock();
+    // double duration = 0.0;
+    struct timeval start;
+	struct timeval end;
+
+    gettimeofday(&start, NULL);
+
     DPU_FOREACH (set, dpu) {
-    DPU_ASSERT(dpu_copy_to(dpu, XSTR(KEY), 0, (unsigned char*)"aabaa\n", MAX_KEY_SIZE));
+    DPU_ASSERT(dpu_copy_to(dpu, XSTR(KEY), 0, (unsigned char*)"aaba\n", MAX_KEY_SIZE));
     DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
     DPU_ASSERT(dpu_copy_to(dpu, XSTR(RECORDS_BUFFER), 0, &dpu_mram_ret_buffer_start, sizeof(uint32_t)));
 
@@ -207,7 +119,7 @@ start = clock();
                 if(curr_start == NULL) {
                     printf("dpu id %d failed\n",dpu_id);
                 }
-                printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, duration, BUFFER_SIZE, copied_length);
+                // printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, duration, BUFFER_SIZE, copied_length);
                 copied_length +=BUFFER_SIZE;
             }
             else {
@@ -223,7 +135,7 @@ start = clock();
                 else {
                     DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &input_length, sizeof(uint32_t)));
                 }
-                printf("dpu copy finished\n");
+                // printf("dpu copy finished\n");
                 curr_start = input_end+1;
                 copied_length +=(input_end-curr_start);
                 
@@ -232,22 +144,26 @@ start = clock();
         }
         dpu_id++;
     }
-    end = clock();
-    duration = ((double) (end - start)) / CLOCKS_PER_SEC;
-    printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, duration, BUFFER_SIZE, copied_length);
+	gettimeofday(&end, NULL);
+    double start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+
+    printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, end_time - start_time, BUFFER_SIZE, copied_length);
 
 //	int err = dpu_launch(set, DPU_SYNCHRONOUS);
-    start = clock();
+    gettimeofday(&start, NULL);
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
-    end = clock();
-    printf("dpu launch took %g s\n",((double) (end - start)) / CLOCKS_PER_SEC);
+    gettimeofday(&end, NULL);
+    start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("dpu launch took %g s\n", end_time - start_time);
 	// if (err != 0)
 	// {
 	// 	DPU_ASSERT(dpu_free(set));
     //     printf("dpu launch failed\n");
 	// 	return;
 	// }
-#if 0 
+#if 0
     {
         unsigned int each_dpu = 0;
         printf("Display DPU Logs\n");
@@ -259,7 +175,7 @@ start = clock();
     }
 #endif 
     int i =0;
-    start = clock();
+    gettimeofday(&start, NULL);
     DPU_FOREACH (set, dpu) {
         DPU_ASSERT(dpu_copy_from(dpu, "output_length", 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
         if(records_len[i] != 0){
@@ -268,8 +184,10 @@ start = clock();
         }
         i++;
     }
-    end = clock();
-    printf("dpu copy back took %g s\n",((double) (end - start)) / CLOCKS_PER_SEC);
+    gettimeofday(&end, NULL);
+    start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("dpu copy back took %g s\n", end_time - start_time);
 #if DEBUG
     for(int j=0; j< NR_DPUS; j++) {
         printf("DPU %d\n found record length %d\n", j, records_len[j]);
