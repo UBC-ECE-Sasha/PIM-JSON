@@ -15,7 +15,7 @@
 #define BLOCK_SIZE 2048 
 #define MAX_BODY_ALLOCTE 4096
 #define MIN_RECORDS_LENGTH 8
-#define STRSTR strstr_org
+#define STRSTR strstr_comb4_op
 
 /* global variables */
 __host uint32_t input_length = 0;
@@ -33,10 +33,11 @@ uint8_t __mram_ptr* end_pos[NR_TASKLETS];
 
 void shift32(uint8_t* start, unsigned int *a){
     *a = 0;
-    *a |= ((start[0] & 0xFF) << 24);
-    *a |= ((start[1] & 0xFF) << 16);
-    *a |= ((start[2] & 0xFF) << 8);
-    *a |= ((start[3] & 0xFF));
+    *a = (start[0] << 24 | 
+          start[1] << 16 |
+          start[2] << 8  |
+          start[3]);
+
 }
 
 void shift_same(uint8_t* start, unsigned int *a){
@@ -369,10 +370,12 @@ int main() {
         printf("strstr false\n");
     }
 #endif
+    perfcounter_config(COUNT_CYCLES, true);
 #if 1
     if(!parseJson(start_index, offset, cache) ){
         return 0;
     }
 #endif
+    printf("Tasklet %d: completed in %ld cycles\n", tasklet_id, perfcounter_get());
     //printf("dpu done\n");
 }
