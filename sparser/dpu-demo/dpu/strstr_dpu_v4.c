@@ -296,13 +296,13 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 if(!record_end) {
                     read_adjust_offset = record_start-cache;
                     read_adjust_offset = read_adjust_offset- read_adjust_offset%8; 
-                    if(tasklet_id == (NR_TASKLETS-1)) {
-                        if(read_adjust_offset == 0 ){
-                            // TBD
-                            read_adjust_offset = BLOCK_SIZE;
-                            break;
-                        }
+
+                    if(read_adjust_offset == 0 ){
+                        // TBD
+                        read_adjust_offset = BLOCK_SIZE;
+                        break;
                     }
+                    
                     break;
                 }
                 else {
