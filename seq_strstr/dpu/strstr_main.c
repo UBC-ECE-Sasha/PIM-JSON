@@ -21,6 +21,7 @@
 #define MIN_RECORDS_LENGTH 8
 #define STRSTR strstr_org
 
+
 /* global variables */
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
@@ -46,6 +47,7 @@ typedef enum {
 	STRSTR_JSON_INVALID_INPUT,		// Input file has an invalid format
 } strstr_status;
 
+# if 1
 static int find_next_set_bit(unsigned int res, int start) {
     if(start == 3) {
         return 4;
@@ -58,6 +60,7 @@ static int find_next_set_bit(unsigned int res, int start) {
     }
     return 4;
 }
+#endif
 
 void shift_same(uint8_t* start, unsigned int *a){
     *a = 0;
@@ -86,38 +89,68 @@ bool parseKey() {
 }
 
 
+unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
+   unsigned int ret = 0;
+   int i =0;
+
+   do {
+        uint8_t a = *_i->ptr;
+        ret |= a << 8 *(3-i);
+        _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t), &_i->sr);
+
+        i++;
+   } while(i<4);
+
+    return ret;
+}
 
 
 bool dpu_strstr(struct in_buffer_context *input) {
-    dbg_printf("curr: %u length: %u\n", input->curr, input->length);
-
     int j = 0; 
     unsigned int res = 0;
     unsigned int b = 0;
-    int next =0;
-    
+    int next = 0;
+
+#if 1
     do {
-        unsigned int *p_str = seqread_get(input->ptr, sizeof(unsigned int), &input->sr);
+        #if 1
+        unsigned int a = READ_4_BYTE(input);
+
+        // input->ptr = (uint8_t*)p_str;
         for(j=0; j< 4; j++) {
                 shift_same(key_cache+j, &b);
-                __builtin_cmpb4_rrr(res, *p_str, b);
+                __builtin_cmpb4_rrr(res, a, b);
                 // jth byte matches
                 if(res & (0x01<<((3-j)*8))){
                     continue;
                 }
                 else {
+                    // 00010001 => 1
                     next = find_next_set_bit(res, j);
                     break;
                 }
             }
+        #endif
         if (j==4) {
             return true;
         }
-        seqread_seek(input->mram_org-4+next, &input->sr);    
-        *p_str = 0;
-        input->curr += next;
-    } while(input->curr < input->length || input->curr+4 > input_length);
 
+        if(next != 4) {
+            input->ptr -= next;  
+        }
+  
+        // if(me() == 0){
+        //     dbg_printf("tasklet %d: sequential reader reads %x count %d, next %d \n", me(), a, 0, next);
+        // }
+        
+        input->curr += 4- next;
+
+        // if(dbg_cnt == 3) {
+        //     break;
+        // }
+        // dbg_cnt++;
+    } while(input->curr < input->length|| input->curr+4 < input->length);
+#endif
     return false;
 }
 
@@ -144,7 +177,7 @@ int main()
 
     input.cache = seqread_alloc();
     input.ptr = seqread_init(input.cache, DPU_BUFFER + input_start, &input.sr);
-    seqread_seek(DPU_BUFFER + input_start, &input.sr);
+    input.mram_org = DPU_BUFFER + input_start;
     input.curr = 0;
 	input.length = 0;
 
@@ -163,16 +196,18 @@ int main()
 		}
 	}
 	else {
-		input.length = input_length - input_start;
+		input.length = input_length - input_start; 
+        // dbg_printf("input_start: %u length: %u\n", input_start, input_length);
 	}
-#if 0
+#if 1
+    // dbg_printf("key cache %c%c%c%c \n", key_cache[0], key_cache[1], key_cache[2], key_cache[3]);
     perfcounter_config(COUNT_CYCLES, true);
     if (input.length != 0) {
 		// Do the uncompress
 		if (dpu_strstr(&input))
 		{
-			printf("Tasklet %d: did not find in %ld cycles\n", idx, perfcounter_get());
-			return -1;
+			printf("Tasklet %d: found searched pattern %lu\n", idx, perfcounter_get());
+            return -1;
 		}
 	}
 #endif
