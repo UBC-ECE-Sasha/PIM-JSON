@@ -68,7 +68,7 @@ int main(int argc, char const *argv[])
     double start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
 	printf("Host completed in %f seconds\n", end_time - start_time);
-
+#if 0
 	for(int d=0; d< NR_DPUS; d++) {
 		if(records_len[d] !=0) {
 		for (uint32_t k=0; k< records_len[d]; k++){
@@ -79,4 +79,5 @@ int main(int argc, char const *argv[])
 		printf("\n");
 		}
 	}
+#endif
 }

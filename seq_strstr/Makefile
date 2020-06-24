@@ -3,7 +3,7 @@ HOST_DIR := host
 BUILDDIR ?= build
 #NR_TASKLETS ?= 16
 NR_TASKLETS ?= 4
-NR_DPUS ?= 2
+NR_DPUS ?= 4
 
 HOST_TARGET := ${BUILDDIR}/strstr_host
 DPU_TARGET := ${BUILDDIR}/strstr_dpu
