@@ -26,6 +26,7 @@
 /* global variables */
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
+__host uint32_t adjust_offset = 0;
 uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
 __host unsigned int  key_cache;
 __host __mram_ptr uint8_t *DPU_BUFFER;
@@ -36,7 +37,6 @@ __host uint32_t input_offset[NR_TASKLETS];
 MUTEX_INIT(write_mutex);
 
 
-# if 1
 static int find_next_set_bit(unsigned int res, int start) {
     if(start == 3) {
         return 4;
@@ -49,7 +49,7 @@ static int find_next_set_bit(unsigned int res, int start) {
     }
     return 4;
 }
-#endif
+
 
 void shift_same(uint8_t start, unsigned int *a){
     *a = 0;
@@ -179,9 +179,14 @@ bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
     return false;
 }
 
-void mv_cache_to_mram(uint8_t *cache, uint32_t length) {
+void mv_cache_to_mram(uint8_t *cache, uint32_t length, bool is_end) {
     uint32_t temp = output_length;
-    output_length +=  roundUp8(length);
+    if(is_end) {
+    	output_length += roundUp8(length);
+    }
+    else {	    
+    	output_length +=  length;
+    }    
     mram_write(cache, RECORDS_BUFFER+temp, roundUp8(length));
     // printRecord(cache, length);
 }
@@ -212,7 +217,7 @@ void write_to_mram(struct record_descrip * rec, struct in_buffer_context *_i) {
             //     printf("cache %x prev %x\n", cache[c_i], prev_char);
             // }
             if(cache[c_i] == 0x0A && prev_char == 0x7D) {
-                mv_cache_to_mram(cache, c_i);
+                mv_cache_to_mram(cache, c_i, true);
                 rec->length += c_i;
                 // printf("------ record finishes %d c_i %d %c\n", rec->length, c_i, *(_i->ptr));
                 return;
@@ -220,7 +225,7 @@ void write_to_mram(struct record_descrip * rec, struct in_buffer_context *_i) {
 
         }
         else {
-            mv_cache_to_mram(cache, c_i);
+            mv_cache_to_mram(cache, c_i, false);
             rec->length += c_i;
             c_i = 0;
             continue;
@@ -230,6 +235,7 @@ void write_to_mram(struct record_descrip * rec, struct in_buffer_context *_i) {
         c_i++;
         // printf("------ record length %d\n", rec->length);
     } while (i < _i->length);
+    // output_length = roundUp8(output_length+64);
 }
 
 
@@ -326,7 +332,7 @@ int main()
     uint8_t idx = me();
 	printf("DPU starting, tasklet %d input_offset %d\n", idx, input_offset[idx]);
 
-    printf("%x\n", key_cache);
+    // printf("%x\n", key_cache);
 
 	// Check that this tasklet has work to run 
 	if ((idx != 0) && (input_offset[idx] == 0)) {
@@ -337,8 +343,8 @@ int main()
     uint32_t input_start = input_offset[idx] - input_offset[0];
 
     input.cache = seqread_alloc();
-    input.ptr = seqread_init(input.cache, DPU_BUFFER + input_start, &input.sr);
-    input.mram_org = DPU_BUFFER + input_start;
+    input.mram_org = DPU_BUFFER + input_start + adjust_offset;
+    input.ptr = seqread_init(input.cache, input.mram_org, &input.sr);
     input.curr = 0;
 	input.length = 0;
 
@@ -357,8 +363,8 @@ int main()
 		// }
 	}
 	else {
-		input.length = input_length - input_start; 
-        printf("input_start: %u length: %u\n", input_start, input_length);
+		input.length = input_length - input_start - adjust_offset; 
+        //  printf("input_start: %u length: %u\n", input_start, input_length);
 	}
 #if 1
     // dbg_printf("key cache %c%c%c%c \n", key_cache[0], key_cache[1], key_cache[2], key_cache[3]);
@@ -375,57 +381,3 @@ int main()
 	}
 #endif
 }
-
-
-
-#if 0
-bool dpu_strstr(struct in_buffer_context *input) {
-    int j = 0; 
-    unsigned int res = 0;
-    unsigned int b = 0;
-    int next = 0;
-
-#if 1
-    do {
-        #if 1
-        unsigned int a = READ_4_BYTE(input);
-
-        // input->ptr = (uint8_t*)p_str;
-        for(j=0; j< 4; j++) {
-                shift_same(key_cache+j, &b);
-                __builtin_cmpb4_rrr(res, a, b);
-                // jth byte matches
-                if(res & (0x01<<((3-j)*8))){
-                    continue;
-                }
-                else {
-                    // 00010001 => 1
-                    next = find_next_set_bit(res, j);
-                    break;
-                }
-            }
-        #endif
-        if (j==4) {
-            return true;
-        }
-
-        if(next != 4) {
-            input->ptr -= next;  
-        }
-  
-        // if(me() == 0){
-        //     dbg_printf("tasklet %d: sequential reader reads %x count %d, next %d \n", me(), a, 0, next);
-        // }
-        
-        input->curr += 4- next;
-
-        // if(dbg_cnt == 3) {
-        //     break;
-        // }
-        // dbg_cnt++;
-    } while(input->curr < input->length|| input->curr+4 < input->length);
-#endif
-    return false;
-}
-#endif
-
