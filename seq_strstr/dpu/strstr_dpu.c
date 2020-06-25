@@ -179,9 +179,15 @@ bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
     return false;
 }
 
-void mv_cache_to_mram(uint8_t *cache, uint32_t length) {
+void mv_cache_to_mram(uint8_t *cache, uint32_t length, bool is_end) {
     uint32_t temp = output_length;
-    output_length +=  roundUp8(length);
+    // printf("----------------------copied length is %u\n", length);
+    if(is_end) {
+    	output_length += roundUp8(length);
+    }
+    else {	    
+    	output_length +=  length;
+    }
     mram_write(cache, RECORDS_BUFFER+temp, roundUp8(length));
     // printRecord(cache, length);
 }
@@ -212,7 +218,7 @@ void write_to_mram(struct record_descrip * rec, struct in_buffer_context *_i) {
             //     printf("cache %x prev %x\n", cache[c_i], prev_char);
             // }
             if(cache[c_i] == 0x0A && prev_char == 0x7D) {
-                mv_cache_to_mram(cache, c_i);
+                mv_cache_to_mram(cache, c_i, true);
                 rec->length += c_i;
                 // printf("------ record finishes %d c_i %d %c\n", rec->length, c_i, *(_i->ptr));
                 return;
@@ -220,7 +226,7 @@ void write_to_mram(struct record_descrip * rec, struct in_buffer_context *_i) {
 
         }
         else {
-            mv_cache_to_mram(cache, c_i);
+            mv_cache_to_mram(cache, c_i, false);
             rec->length += c_i;
             c_i = 0;
             continue;
@@ -230,6 +236,7 @@ void write_to_mram(struct record_descrip * rec, struct in_buffer_context *_i) {
         c_i++;
         // printf("------ record length %d\n", rec->length);
     } while (i < _i->length);
+    output_length = roundUp8(output_length+64);
 }
 
 
@@ -274,11 +281,11 @@ bool dpu_strstr(struct in_buffer_context *input) {
         else {
             int kth_byte = 0;
             if(CHECK_4_BYTE(a, &kth_byte)) {
-                printf("goes to here\n");
+                // printf("goes to here\n");
                 // finish reading a record
                 
                 rec.length = input->curr - rec.org -(4-kth_byte-1);
-                printf("record length %d curr %d org %d kth_byte%d \n", rec.length, input->curr, rec.org, kth_byte);
+                // printf("record length %d curr %d org %d kth_byte%d \n", rec.length, input->curr, rec.org, kth_byte);
                 // reset
                 rec.record_start += (rec.length);
                 rec.str_found = 0;
