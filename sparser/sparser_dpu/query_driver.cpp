@@ -150,6 +150,7 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 			// }
 			// magic number
 			if( record_length > 32 ) {
+#if HOST_DEBUG
 				printf("\n--new-record --- cpu record length %d\n", record_length);
 				int n_c =0;
 				for (int k=0; k< record_length; k++){
@@ -161,7 +162,8 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 						putchar(c);
 				}
 				printf("number of null char in the array is %d\n", n_c);
-				printf("\n");			
+				printf("\n");		
+#endif	
 				if (_rapidjson_parse_callback_dpu(current_record_start, cdata, record_length)) {
 						n_succeed++;
 				}	
