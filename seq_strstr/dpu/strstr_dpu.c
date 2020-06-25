@@ -356,7 +356,7 @@ int main()
 
     input.cache = seqread_alloc();
     input.ptr = seqread_init(input.cache, DPU_BUFFER + input_start+adjust_offset, &input.sr);
-    input.mram_org = DPU_BUFFER + input_start;
+    input.mram_org = DPU_BUFFER + input_start + adjust_offset;
     input.curr = 0;
 	input.length = 0;
 
