@@ -26,11 +26,11 @@
 /* global variables */
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
-__dma_aligned uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
-__dma_aligned uint8_t key_cache[MAX_KEY_SIZE];
+uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
+__host unsigned int  key_cache;
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host __mram_ptr uint8_t *RECORDS_BUFFER;
-__mram_noinit uint8_t KEY[MAX_KEY_SIZE];
+// __mram_noinit uint8_t KEY[MAX_KEY_SIZE];
 __host uint32_t input_offset[NR_TASKLETS];
 
 MUTEX_INIT(write_mutex);
@@ -51,12 +51,12 @@ static int find_next_set_bit(unsigned int res, int start) {
 }
 #endif
 
-void shift_same(uint8_t* start, unsigned int *a){
+void shift_same(uint8_t start, unsigned int *a){
     *a = 0;
-    *a |= (start[0]<< 24);
-    *a |= (start[0]<< 16);
-    *a |= (start[0]<< 8);
-    *a |= (start[0]);
+    *a |= (start<< 24);
+    *a |= (start<< 16);
+    *a |= (start<< 8);
+    *a |= (start);
 }
 
 
@@ -82,19 +82,19 @@ void printRecord(uint8_t* record_start, uint32_t length) {
 /*
  * Parse search string from mram
  */
-bool parseKey() {
-    mram_read(&(KEY[0]), key_cache, MAX_KEY_SIZE);
-    uint8_t* end = memchr(key_cache,'\n' ,MAX_KEY_SIZE);
+// bool parseKey() {
+//     mram_read(&(KEY[0]), key_cache, MAX_KEY_SIZE);
+//     uint8_t* end = memchr(key_cache,'\n' ,MAX_KEY_SIZE);
 
-    if(end != NULL) {
-        *((char*)(end)) = '\0';
-        return true;
-    }
-    else {
-        printf("invalid key\n");
-        return false;
-    }
-}
+//     if(end != NULL) {
+//         *((char*)(end)) = '\0';
+//         return true;
+//     }
+//     else {
+//         printf("invalid key\n");
+//         return false;
+//     }
+// }
 
 
 unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
@@ -133,7 +133,7 @@ bool STRSTR_4_BYTE(unsigned int a, int* next){
     unsigned int b = 0;
 
     for(j=0; j< 4; j++) {
-        shift_same(key_cache+j, &b);
+        shift_same(key_cache>>((3-j)*8), &b);
         __builtin_cmpb4_rrr(res, a, b);
         // jth byte matches
         if(res & (0x01<<((3-j)*8))){
@@ -326,12 +326,7 @@ int main()
     uint8_t idx = me();
 	printf("DPU starting, tasklet %d input_offset %d\n", idx, input_offset[idx]);
 
-    if(idx == 0) {
-        if(!parseKey()) {
-            printf("dpu parse search string failed return\n");
-            return 0;
-        }
-    }
+    printf("%x\n", key_cache);
 
 	// Check that this tasklet has work to run 
 	if ((idx != 0) && (input_offset[idx] == 0)) {
