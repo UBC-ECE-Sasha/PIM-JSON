@@ -26,12 +26,14 @@
 /* global variables */
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
+__host uint32_t adjust_offset = 0;
 __dma_aligned uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
 __host unsigned int  key_cache;
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host __mram_ptr uint8_t *RECORDS_BUFFER;
 __mram_noinit uint8_t KEY[MAX_KEY_SIZE];
 __host uint32_t input_offset[NR_TASKLETS];
+
 
 MUTEX_INIT(write_mutex);
 
@@ -353,7 +355,7 @@ int main()
     uint32_t input_start = input_offset[idx] - input_offset[0];
 
     input.cache = seqread_alloc();
-    input.ptr = seqread_init(input.cache, DPU_BUFFER + input_start, &input.sr);
+    input.ptr = seqread_init(input.cache, DPU_BUFFER + input_start+adjust_offset, &input.sr);
     input.mram_org = DPU_BUFFER + input_start;
     input.curr = 0;
 	input.length = 0;
@@ -373,7 +375,7 @@ int main()
 		// }
 	}
 	else {
-		input.length = input_length - input_start; 
+		input.length = input_length - input_start- adjust_offset; 
         printf("input_start: %u length: %u\n", input_start, input_length);
 	}
 #if 1
