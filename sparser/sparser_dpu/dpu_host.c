@@ -19,7 +19,7 @@
 #define DPU_LOG_ENABLE 1
 #define WRITE_OUT 1
 #define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
-
+#define HOST_DEBUG 0
 
 
 dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, const void *src, size_t length){
@@ -74,7 +74,9 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
             o_end = (dpu_indx+1) * dpu_blocksize;
             r_end = memchr(input+o_end, '\n', length- o_end);
             input_offset[dpu_indx+1][0] = r_end-input +1;
+        #if HOST_DEBUG
             printf("dpu %d starts at %d %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
+        #endif
         }
     }
 
@@ -93,8 +95,9 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
                 o_end = (tasklet_index+1) * t_blocksize + input_offset[dpu_indx][0];
                 r_end = memchr(input+o_end, '\n', length- o_end);
                 input_offset[dpu_indx][tasklet_index+1] = r_end-input +1;
-                printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
-
+                #if HOST_DEBUG
+                    printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
+                #endif
             }
 
         }
@@ -119,25 +122,16 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(set, &nr_of_ranks));
-    printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
+    #if HOST_DEBUG
+        printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
+    #endif
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 
-    //long offset = 0;
+
     unsigned int dpu_id = 0;
-    // char* curr_start = input;
-    // char* input_end = input+length;
-    //dpu_error_t status;
-    // uint32_t input_length = 8;
-    printf("total record length is %ld\n", length);
     uint32_t dpu_mram_buffer_start = 1024 * 1024;
     uint32_t dpu_mram_ret_buffer_start[NR_DPUS] = {0};
-    
-    // ALIGN(dpu_mram_buffer_start + input_length + 64, 64);
 
-    // copy the key in for all DPUs - hardcoded now
-    // clock_t start, end;
-    // long copied_length =0;
-    // double duration = 0.0;
     struct timeval start;
 	struct timeval end;
 
@@ -147,13 +141,14 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     calculate_offset(input, length, input_offset, input_length);
 
     gettimeofday(&start, NULL);
+    #if HOST_DEBUG
     for(int i=0; i< NR_DPUS; i++) {
         for (int j=0; j< NR_TASKLETS; j++) {
             printf("%d ", input_offset[i][j]);
         }
         printf("\n");
     }
-
+    #endif
   // unsigned int key = 0x72756D70;
      unsigned int key = 0x61616261;
 
@@ -184,7 +179,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("dpu launch took %g s\n", end_time - start_time);
-
+#if HOST_DEBUG
     {
         unsigned int each_dpu = 0;
         printf("Display DPU Logs\n");
@@ -194,22 +189,22 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
         each_dpu++;
         }
     } 
+#endif
     //printf("%d %c\n",records_len[0], ret[0][0]); 
 
     int i =0;
     DPU_FOREACH (set, dpu) {
         DPU_ASSERT(dpu_copy_from(dpu, "output_length", 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
         if(records_len[i] != 0){
-            //DPU_ASSERT(dpu_copy_from(dpu, XSTR(RECORDS_BUFFER), 0, (uint8_t*)(ret[i]), RETURN_RECORDS_SIZE));
             DPU_ASSERT(dpu_copy_from_mram(dpu.dpu, (uint8_t*)(ret[i]), dpu_mram_ret_buffer_start[i], ALIGN(records_len[i]+16, 8), DPU_PRIMARY_MRAM));
         }
         i++;
     }
-
+}
     // for(int j=0; j< NR_DPUS; j++) {
     //     printf("DPU %d found record length %d\n", j, records_len[j]);
     // }
-    printf("------------- host -------------------\n");
+    // printf("------------- host -------------------\n");
     // 	for(int d=0; d< NR_DPUS; d++) {
 	// 	if(records_len[d] !=0) {
 	// 	for (uint32_t k=0; k< records_len[d]; k++){
@@ -221,4 +216,4 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
 	// 	}
 	// }
     // copy the data back and check 
-}
+
