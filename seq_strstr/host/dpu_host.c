@@ -197,7 +197,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
 
         uint32_t adjust_offset = input_offset[dpu_id][0]%8;
         input_length[dpu_id] += adjust_offset;
-        input_length[dpu_indx] = ALIGN(input_length[dpu_indx], 8);
+        input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
         dpu_mram_ret_buffer_start[dpu_id] = ALIGN(dpu_mram_buffer_start + input_length[dpu_id] + 64, 64);
         DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, &key, sizeof(unsigned int)));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));

@@ -99,7 +99,7 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
 
         }
 
-         input_length[dpu_indx] = ALIGN(input_length[dpu_indx], 8);
+        // input_length[dpu_indx] = ALIGN(input_length[dpu_indx], 8);
 
 
     }
@@ -158,12 +158,16 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
      unsigned int key = 0x61616261;
 
     DPU_FOREACH (set, dpu) {
+        uint32_t adjust_offset = input_offset[dpu_id][0]%8;
+        input_length[dpu_id] += adjust_offset;
+        input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
         dpu_mram_ret_buffer_start[dpu_id] = ALIGN(dpu_mram_buffer_start + input_length[dpu_id] + 64, 64);
         DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, &key, sizeof(unsigned int)));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(RECORDS_BUFFER), 0, &(dpu_mram_ret_buffer_start[dpu_id]), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint32_t) * NR_TASKLETS));
         DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
+        DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0], input_length[dpu_id], DPU_PRIMARY_MRAM));
         dpu_id++;
     }
@@ -202,9 +206,9 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
         i++;
     }
 
-    for(int j=0; j< NR_DPUS; j++) {
-        printf("DPU %d found record length %d\n", j, records_len[j]);
-    }
+    // for(int j=0; j< NR_DPUS; j++) {
+    //     printf("DPU %d found record length %d\n", j, records_len[j]);
+    // }
     printf("------------- host -------------------\n");
     // 	for(int d=0; d< NR_DPUS; d++) {
 	// 	if(records_len[d] !=0) {

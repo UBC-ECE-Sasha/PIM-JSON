@@ -31,20 +31,45 @@ int _rapidjson_parse_callback(const char *line, void *query) {
   if (!query) return false;
 	struct callback_data *data = (struct callback_data *)query;
   char *newline = (char *)strchr(line, '\n');
+
   // Last one?
   if (!newline) {
     newline = (char *)(line + strlen(line) + 1);
   }
   char tmp = *newline;
   *newline = '\0';
+
 	int passed = rapidjson_engine(data->query, line, NULL);
 	if (passed) {
 		data->count++;
 	}
   *newline = tmp;
-	printf("line passed: %d\n", passed);
 	return passed;
 }
+
+
+int _rapidjson_parse_callback_dpu(const char *line, void *query, size_t length) {
+  if (!query) return false;
+	struct callback_data *data = (struct callback_data *)query;
+  char *newline = (char *)memchr(line, '\n', length);
+
+  // Last one?
+  if (!newline) {
+	// printf("no new line \n");
+    newline = (char *)(line + strlen(line) + 1);
+  }
+  char tmp = *newline;
+  *newline = '\0';
+
+
+	int passed = rapidjson_engine(data->query, line, NULL);
+	if (passed) {
+		data->count++;
+	}
+  *newline = tmp;
+	return passed;
+}
+
 
 double bench_rapidjson_engine(char *data, long length, json_query_t query, int queryno) {
   bench_timer_t s = time_start();
@@ -125,14 +150,19 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 			// }
 			// magic number
 			if( record_length > 32 ) {
-				printf("cpu record length %d\n", record_length);
+				printf("\n--new-record --- cpu record length %d\n", record_length);
+				int n_c =0;
 				for (int k=0; k< record_length; k++){
 						char c;
 						c= current_record_start[k];
+						if(c == '\0') {
+							n_c++;
+						}
 						putchar(c);
 				}
+				printf("number of null char in the array is %d\n", n_c);
 				printf("\n");			
-				if (_rapidjson_parse_callback(current_record_start, cdata)) {
+				if (_rapidjson_parse_callback_dpu(current_record_start, cdata, record_length)) {
 						n_succeed++;
 				}	
 			} 			
