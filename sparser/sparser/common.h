@@ -139,6 +139,32 @@ long read_local(const char *filename_uri, char **buf, unsigned long start,
     return length + 1;
 }
 
+#define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
+long read_all_align(const char *filename, char **buf) {
+    FILE *f = fopen(filename, "r");
+    if (!f) {
+        fprintf(stderr, "%s: ", filename);
+        perror("read_all");
+        exit(1);
+    }
+
+    fseek(f, 0, SEEK_END);
+    long fsize = ftell(f);
+    fseek(f, 0, SEEK_SET);  // same as rewind(f);
+
+    long adjusted_fsize = ALIGN(fsize + 64, 64);
+    char *string = (char *)malloc(adjusted_fsize);
+    fread(string, fsize, 1, f);
+    fclose(f);
+
+    string[fsize] = 0;
+
+    *buf = string;
+    return fsize + 1;
+}
+
+
+
 /** Reads the entire file filename into memory. */
 long read_all(const char *filename, char **buf) {
     FILE *f = fopen(filename, "r");

@@ -340,7 +340,7 @@ int main(int argc, char **argv) {
 
 	printf("Reading data...");
 	fflush(stdout);
-  length = read_all(filename, &raw);
+  length = read_all_align(filename, &raw);
 	printf("done! read %f GB\n", (double)length / 1e9);
 	fflush(stdout);
 
