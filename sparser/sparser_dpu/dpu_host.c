@@ -117,6 +117,9 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
+    struct timeval start;
+	struct timeval end;
+        
     length = 1<<20;
     
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
@@ -127,18 +130,21 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     #endif
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 
-
+    gettimeofday(&start, NULL);
     unsigned int dpu_id = 0;
     uint32_t dpu_mram_buffer_start = 1024 * 1024;
     uint32_t dpu_mram_ret_buffer_start[NR_DPUS] = {0};
 
-    struct timeval start;
-	struct timeval end;
+
 
     uint32_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
     uint32_t input_length[NR_DPUS] ={0};
 
     calculate_offset(input, length, input_offset, input_length);
+    gettimeofday(&end, NULL);
+    double start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("host preprocess took %g s \n", end_time - start_time);
 
     gettimeofday(&start, NULL);
     #if HOST_DEBUG
@@ -168,10 +174,10 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     }
 
 	gettimeofday(&end, NULL);
-    double start_time = start.tv_sec + start.tv_usec / 1000000.0;
-	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	end_time = end.tv_sec + end.tv_usec / 1000000.0;
 
-    // printf("host %d took %g s for coping %d total copied %ld\n", dpu_id, end_time - start_time, BUFFER_SIZE, copied_length);
+    printf("host took %g s for transferring memory\n", end_time - start_time);
 
     gettimeofday(&start, NULL);
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
