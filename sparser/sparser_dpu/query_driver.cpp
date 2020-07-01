@@ -142,16 +142,10 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 				current_record_end = input_last_byte;
 			}
 			size_t record_length = current_record_end - current_record_start+1;
-			// printf("cpu record length %d\n", record_length);
-			// for (int k=0; k< record_length; k++){
-			// 		char c;
-			// 		c= current_record_start[k];
-			// 		putchar(c);
-			// }
 			// magic number
 			if( record_length > 32 ) {
 #if HOST_DEBUG
-				printf("\n--new-record --- cpu record length %d\n", record_length);
+				dbg_printf("\n--new-record --- cpu record length %d\n", record_length);
 				int n_c =0;
 				for (int k=0; k< record_length; k++){
 						char c;
@@ -161,8 +155,8 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 						}
 						putchar(c);
 				}
-				printf("number of null char in the array is %d\n", n_c);
-				printf("\n");		
+				dbg_printf("number of null char in the array is %d\n", n_c);
+				dbg_printf("\n");		
 #endif	
 				if (_rapidjson_parse_callback_dpu(current_record_start, cdata, record_length)) {
 						n_succeed++;
@@ -198,8 +192,8 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	memset(query, 0, sizeof(sparser_query_t));	
 	query->count = 1;
 	memcpy(query->queries[query->count], "abaa", 4);
-		// printf("dpu searched query is %s query count %d\n", query->queries[0], query->count);
-		// get the filtered buffer
+	dbg_printf("dpu searched query is %s query count %d\n", query->queries[0], query->count);
+	// get the filtered buffer
 	#endif
 
 	// get the return buffer array ready
@@ -211,22 +205,8 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 		ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
 	}
 
-	// process the records
-	//multi_dpu_test(data, length, ret_bufs);
 	multi_dpu_test(data, length, ret_bufs, records_len);
-#if 0
-	for(int d=0; d< NR_DPUS; d++) {
-		if(records_len[d] !=0) {
-		printf("dpu %d found : \n", d);
-		for (int k=0; k< records_len[d]; k++){
-			char c;
-			c= ret_bufs[d][k];
-			putchar(c);
-		}
-		// printf("\n");
-		}
-	}
-#endif
+
 	//process the return buffer
 	gettimeofday(&start, NULL);
 	for (i=0; i<NR_DPUS; i++) {

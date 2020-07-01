@@ -26,7 +26,7 @@ dpu:
 	dpu-upmem-dpurte-clang -Wall -Wextra -Werror -g -I ../dpu_common.h -I dpu/strstr_dpu.h -O -DNR_TASKLETS=${NR_TASKLETS} -o ${DPU_TARGET} dpu/strstr_dpu.c
 
 dpu_host:
-	$(CC) -Wall -Wextra -Werror -g -I ../ -I . -O -std=c11 ${DPU_FLAGS} ${HOST_FLAGS} -c -o dpu_host.o dpu_host.c
+	$(CC) -Wall -Wextra -Werror -g -I ../ -I . -I ../../../PIM-common/common/include/ -O -std=c11 ${DPU_FLAGS} ${HOST_FLAGS} -c -o dpu_host.o dpu_host.c
 
 debug:
 	$(CC) $(CFLAGS) -O0 -g -DDEBUG $(INCLUDES) bench.cpp -o bench

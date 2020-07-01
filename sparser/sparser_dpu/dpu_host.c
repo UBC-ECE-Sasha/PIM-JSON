@@ -21,7 +21,11 @@
 #define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
 #define HOST_DEBUG 0
 
-
+/**
+ * 
+ * Utility functions 
+ *  
+ **/
 dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, const void *src, size_t length){
     dpu_error_t status;
     struct dpu_program_t *program;
@@ -75,7 +79,7 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
             r_end = memchr(input+o_end, '\n', length- o_end);
             input_offset[dpu_indx+1][0] = r_end-input +1;
         #if HOST_DEBUG
-            printf("dpu %d starts at %d %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
+            dbg_printf("dpu %d starts at %d %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
         #endif
         }
     }
@@ -96,23 +100,24 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
                 r_end = memchr(input+o_end, '\n', length- o_end);
                 input_offset[dpu_indx][tasklet_index+1] = r_end-input +1;
                 #if HOST_DEBUG
-                    printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
+                    dbg_printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
                 #endif
             }
 
         }
-
-        // input_length[dpu_indx] = ALIGN(input_length[dpu_indx], 8);
-
-
     }
 
     return true;
 }
 
 
-
-
+/************************************************************************************************** 
+*
+*
+* actual code starts here
+*
+*
+****************************************************************************************************/
 void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_len){
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
@@ -126,7 +131,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(set, &nr_of_ranks));
     #if HOST_DEBUG
-        printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
+        dbg_printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
     #endif
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 
@@ -188,15 +193,14 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
 #if HOST_DEBUG
     {
         unsigned int each_dpu = 0;
-        printf("Display DPU Logs\n");
+        dbg_printf("Display DPU Logs\n");
         DPU_FOREACH (set, dpu) {
-        printf("DPU#%d:\n", each_dpu);
+        dbg_printf("DPU#%d:\n", each_dpu);
         DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
         each_dpu++;
         }
     } 
 #endif
-    //printf("%d %c\n",records_len[0], ret[0][0]); 
 
     int i =0;
     DPU_FOREACH (set, dpu) {
@@ -207,19 +211,3 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
         i++;
     }
 }
-    // for(int j=0; j< NR_DPUS; j++) {
-    //     printf("DPU %d found record length %d\n", j, records_len[j]);
-    // }
-    // printf("------------- host -------------------\n");
-    // 	for(int d=0; d< NR_DPUS; d++) {
-	// 	if(records_len[d] !=0) {
-	// 	for (uint32_t k=0; k< records_len[d]; k++){
-	// 		char c;
-	// 		c= ret[d][k];
-	// 		printf("%c", c);
-	// 	}
-	// 	printf("\n");
-	// 	}
-	// }
-    // copy the data back and check 
-
