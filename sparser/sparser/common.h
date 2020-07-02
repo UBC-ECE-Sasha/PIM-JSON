@@ -139,7 +139,7 @@ long read_local(const char *filename_uri, char **buf, unsigned long start,
     return length + 1;
 }
 
-#define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
+#define ALIGN(_p, _width) (((long)_p + (_width-1)) & (0-_width))
 long read_all_align(const char *filename, char **buf) {
     FILE *f = fopen(filename, "r");
     if (!f) {

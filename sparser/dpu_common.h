@@ -14,7 +14,7 @@
 
 #define BUFFER_SIZE (1 << 20)//(16<<20)//(3 << 19)
 #define MAX_KEY_SIZE 8
-#define RETURN_RECORDS_SIZE (1<<20)
+#define RETURN_RECORDS_SIZE (8<<20)
 #define MAX_RECORD_SIZE 2048
 
 #endif /* __DPU_COMMON_H__ */
