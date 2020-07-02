@@ -132,10 +132,10 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 }
 
 
-int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata){
+int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata, long* candidates){
 	int n_succeed = 0;
 	int record_count = 0;
-
+	
 	/// Last byte in the data.
 	char *input_last_byte = buf + length; //-1;
 	// Points to the end of the current record.
@@ -154,6 +154,7 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 			size_t record_length = current_record_end - current_record_start+1;
 			// magic number
 			if( record_length > 32 ) {
+				(*candidates) += 1;
 #if HOST_DEBUG
 				dbg_printf("\n--new-record --- cpu record length %d\n", record_length);
 				int n_c =0;
@@ -227,12 +228,14 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	multi_dpu_test(data, keys, query->count,length, ret_bufs, records_len);
 
 	//process the return buffer
+	long candidates = 0;
 	gettimeofday(&start, NULL);
 	for (i=0; i<NR_DPUS; i++) {
 		if (records_len[i] != 0) {
-			parse_suceed += process_return_buffer((char*)ret_bufs[i], records_len[i], &cdata);
+			parse_suceed += process_return_buffer((char*)ret_bufs[i], records_len[i], &cdata, &candidates);
 		}
 	}
+	printf("return buffer total valid candidates %ld\n", candidates);
 	gettimeofday(&end, NULL);
 
 	double elapsed = time_stop(s);
