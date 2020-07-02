@@ -71,6 +71,16 @@ int _rapidjson_parse_callback_dpu(const char *line, void *query, size_t length) 
 }
 
 
+void shift32(uint8_t* start, unsigned int *a){
+    *a = 0;
+    *a = (start[0] << 24 | 
+          start[1] << 16 |
+          start[2] << 8  |
+          start[3]);
+
+}
+
+
 double bench_rapidjson_engine(char *data, long length, json_query_t query, int queryno) {
   bench_timer_t s = time_start();
   long doc_index = 1;
@@ -172,6 +182,13 @@ int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata
 }
 
 
+void queries_to_keys(sparser_query_t *query, unsigned int * keys) {
+	for(int i=0; i<query->count; i++) {
+		shift32((unsigned char*)query->queries[i], &(keys[i]));
+		printf("keys %d %x\n", i, keys[i]);
+	}
+}
+
 
 void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, ascii_rawfilters_t *predicates, int queryno) {
   struct timeval start;
@@ -199,13 +216,15 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	// get the return buffer array ready
 	uint8_t *ret_bufs[NR_DPUS];
 	uint32_t records_len[NR_DPUS];
+	unsigned int keys[query->count];
+	queries_to_keys(query, keys);
 
 	int i=0;
 	for (i=0; i<NR_DPUS; i++) {
 		ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
 	}
 
-	multi_dpu_test(data, length, ret_bufs, records_len);
+	multi_dpu_test(data, keys, query->count,length, ret_bufs, records_len);
 
 	//process the return buffer
 	gettimeofday(&start, NULL);

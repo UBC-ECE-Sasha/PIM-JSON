@@ -20,6 +20,7 @@
 #define MAX_BODY_ALLOCTE 4096
 #define MIN_RECORDS_LENGTH 8
 #define STRSTR strstr_org
+#define MAX_KEY_ARY_LENGTH 8
 
 
 /* global variables */
@@ -27,7 +28,7 @@ __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
 uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
-__host unsigned int  key_cache;
+__host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host __mram_ptr uint8_t *RECORDS_BUFFER;
 __host uint32_t input_offset[NR_TASKLETS];
@@ -114,7 +115,7 @@ bool STRSTR_4_BYTE(unsigned int a, int* next){
     unsigned int b = 0;
 
     for(j=0; j< 4; j++) {
-        shift_same(key_cache>>((3-j)*8), &b);
+        shift_same(key_cache[0]>>((3-j)*8), &b);
         __builtin_cmpb4_rrr(res, a, b);
         //TODO op - needs more test
         if(j==0) {
