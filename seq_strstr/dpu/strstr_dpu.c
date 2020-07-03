@@ -110,7 +110,7 @@ unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
    do {
         uint8_t a = *_i->ptr;
         ret |= a << ((3-i)<<3);
-        _i->ptr = seqread_get(_)i->ptr, sizeof(uint8_t), &_i->sr);
+        _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t), &_i->sr);
 
         i++;
    } while(i<4);

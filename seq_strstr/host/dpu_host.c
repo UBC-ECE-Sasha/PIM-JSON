@@ -18,7 +18,6 @@
 #define DPU_BINARY "build/strstr_dpu"
 #define DPU_LOG_ENABLE 1
 #define WRITE_OUT 1
-#define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
 #define HOST_DEBUG 0
 
 
@@ -64,36 +63,7 @@ void printRecord(char* record_start, uint32_t length) {
 }
 
 
-
-#define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
 // give a large file we need to divide the file into proper chunks for each dpu and each tasklet
-#if 0
-bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][NR_TASKLETS]) {
-    length = 1<<20;
-    uint32_t block_size = (ALIGN(length, 8)) / (NR_DPUS * NR_TASKLETS);
-
-    printf("%c\n", input[0]);
-    if(block_size < 64) {
-        return false;
-    }
-    int dpu_indx = 0;
-    int tasklet_index = 0;
-
-    for (int i=0; i< NR_DPUS * NR_TASKLETS; i++) {
-        input_offset[dpu_indx][tasklet_index] = i * block_size;
-
-        if(tasklet_index == NR_TASKLETS-1) {
-            dpu_indx++;
-            tasklet_index =0;
-        }
-        else {
-            tasklet_index++;
-        }
-    }
-    return true;
-}
-#endif
-
 bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
     long dpu_blocksize = (ALIGN(length, 8)) / NR_DPUS;
     int dpu_indx = 0;
@@ -148,7 +118,8 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
-    length = 1<<20;
+    // this is for running on the simulator as it will take forever if the file is large
+    length = MEGABYTE(1);
     
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
