@@ -132,9 +132,9 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 }
 
 
-int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata, long* candidates){
-	int n_succeed = 0;
-	int record_count = 0;
+long process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata, long* candidates){
+	long n_succeed = 0;
+	long record_count = 0;
 	
 	/// Last byte in the data.
 	char *input_last_byte = buf + length; //-1;
@@ -200,7 +200,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
   	cdata.query = jquery;	
 	// char* ret_buf;
 
-	int parse_suceed =0;
+	long parse_suceed =0;
 
 	// XXX Generate a schedule
 	#if ENABLE_CALIBRATE 
