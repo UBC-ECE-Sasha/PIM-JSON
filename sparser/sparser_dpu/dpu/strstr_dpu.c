@@ -24,14 +24,14 @@
 
 
 /* global variables */
-__host uint32_t input_length = 0;
+__host long input_length = 0;
 __host uint32_t output_length = 0;
-__host uint32_t adjust_offset = 0;
+__host int adjust_offset = 0;
 uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host __mram_ptr uint8_t *RECORDS_BUFFER;
-__host uint32_t input_offset[NR_TASKLETS];
+__host long input_offset[NR_TASKLETS];
 
 MUTEX_INIT(write_mutex);
 
@@ -295,7 +295,7 @@ int main()
 		return 0;
 	}   
     struct in_buffer_context input;
-    uint32_t input_start = input_offset[idx] - input_offset[0];
+    long input_start = input_offset[idx] - input_offset[0];
 
     input.cache = seqread_alloc();
     input.mram_org = DPU_BUFFER + input_start + adjust_offset;
@@ -305,7 +305,7 @@ int main()
 
 	// Calculate the actual length this tasklet parses
 	if (idx < (NR_TASKLETS - 1)) {
-		int32_t input_end = input_offset[idx + 1] - input_offset[0];
+		long input_end = input_offset[idx + 1] - input_offset[0];
 		input.length = input_end - input_start;
 	}
 	else {
