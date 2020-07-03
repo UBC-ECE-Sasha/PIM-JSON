@@ -65,7 +65,7 @@ void printRecord(char* record_start, uint32_t length) {
 
 
 // give a large file we need to divide the file into proper chunks for each dpu and each tasklet
-bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
+bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
     long dpu_blocksize = (ALIGN_LONG(length, 8)) / NR_DPUS;
     int dpu_indx = 0;
     int tasklet_index = 0;
@@ -91,7 +91,7 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
             input_length[dpu_indx] = input_offset[dpu_indx+1][0] - input_offset[dpu_indx][0];
         }
         else {
-            input_length[dpu_indx] = length- input_offset[dpu_indx][0];
+            input_length[dpu_indx] = length - input_offset[dpu_indx][0];
         }
 
         t_blocksize = input_length[dpu_indx] / NR_TASKLETS;
@@ -145,7 +145,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     unsigned int dpu_id = 0;
     uint32_t dpu_mram_buffer_start = 1024 * 1024;
     uint32_t dpu_mram_ret_buffer_start[NR_DPUS] = {0};
-    uint32_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
+    uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
     uint32_t input_length[NR_DPUS] = {0};
 
     calculate_offset(input, length, input_offset, input_length);
@@ -158,7 +158,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     #if HOST_DEBUG
     for(int i=0; i< NR_DPUS; i++) {
         for (int j=0; j< NR_TASKLETS; j++) {
-            printf("%d ", input_offset[i][j]);
+            printf("%lu ", input_offset[i][j]);
         }
         printf("\n");
     }
@@ -167,7 +167,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
   //   unsigned int key = 0x61616261;
 
     DPU_FOREACH (set, dpu) {
-        int adjust_offset = input_offset[dpu_id][0]%8;
+        uint32_t adjust_offset = input_offset[dpu_id][0]%8;
         input_length[dpu_id] += adjust_offset;
         input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
         dpu_mram_ret_buffer_start[dpu_id] = ALIGN(dpu_mram_buffer_start + input_length[dpu_id] + 64, 64);
@@ -175,9 +175,9 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
          DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(RECORDS_BUFFER), 0, &(dpu_mram_ret_buffer_start[dpu_id]), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint32_t) * NR_TASKLETS));
+        DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint64_t) * NR_TASKLETS));
         DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(int)));
+        DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- adjust_offset, input_length[dpu_id], DPU_PRIMARY_MRAM));
         dpu_id++;
     }

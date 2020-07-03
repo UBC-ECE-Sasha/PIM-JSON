@@ -26,12 +26,12 @@
 /* global variables */
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
-__host int adjust_offset = 0;
+__host uint32_t adjust_offset = 0;
 uint8_t DPU_CACHES[NR_TASKLETS][BLOCK_SIZE];
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host __mram_ptr uint8_t *RECORDS_BUFFER;
-__host uint32_t input_offset[NR_TASKLETS];
+__host uint64_t input_offset[NR_TASKLETS];
 
 MUTEX_INIT(write_mutex);
 
