@@ -19,7 +19,7 @@
 #define DPU_LOG_ENABLE 1
 #define WRITE_OUT 1
 #define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
-
+#define HOST_DEBUG 0
 
 
 uint32_t roundDown8(uint32_t a){
@@ -127,7 +127,7 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
                 o_end = (tasklet_index+1) * t_blocksize + input_offset[dpu_indx][0];
                 r_end = memchr(input+o_end, '\n', length- o_end);
                 input_offset[dpu_indx][tasklet_index+1] = r_end-input +1;
-                printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
+                // printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
 
             }
 
@@ -162,7 +162,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     // char* input_end = input+length;
     //dpu_error_t status;
     // uint32_t input_length = 8;
-    printf("total record length is %ld\n", length);
+    // printf("total record length is %ld\n", length);
     uint32_t dpu_mram_buffer_start = 1024 * 1024;
     uint32_t dpu_mram_ret_buffer_start[NR_DPUS] = {0};
     
@@ -181,12 +181,14 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     calculate_offset(input, length, input_offset, input_length);
 
     gettimeofday(&start, NULL);
+#if HOST_DEBUG
     for(int i=0; i< NR_DPUS; i++) {
         for (int j=0; j< NR_TASKLETS; j++) {
             printf("%d ", input_offset[i][j]);
         }
         printf("\n");
     }
+#endif
     // uint8_t key[4] = "rumprump";
     // unsigned int key = 0x72756D70;
     unsigned int key = 0x61616261;
@@ -222,7 +224,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("dpu launch took %g s\n", end_time - start_time);
-
+#if HOST_DEBUG
     {
         unsigned int each_dpu = 0;
         printf("Display DPU Logs\n");
@@ -232,6 +234,7 @@ void multi_dpu_test(char *input, long length, uint8_t** ret, uint32_t *records_l
         each_dpu++;
         }
     } 
+#endif
     //printf("%d %c\n",records_len[0], ret[0][0]); 
 
     int i =0;

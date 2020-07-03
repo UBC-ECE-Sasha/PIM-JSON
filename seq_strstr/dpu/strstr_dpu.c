@@ -16,7 +16,7 @@
 #include "../../common/include/common.h"
 #include "strstr_dpu.h"
 
-/* dpu marcos */
+/* dpu macrcos */
 #define BLOCK_SIZE 1024 
 #define MAX_BODY_ALLOCTE 4096
 #define MIN_RECORDS_LENGTH 8
@@ -38,20 +38,24 @@ __host uint32_t input_offset[NR_TASKLETS];
 MUTEX_INIT(write_mutex);
 
 
-# if 1
+/*
+ * input res: 0x01000100
+ *               0-1-2-3
+ * start: for the above example, start = 0, 
+ * the next set byte is 2, therefore return 2
+ */
 static int find_next_set_bit(unsigned int res, int start) {
     if(start == 3) {
         return 4;
     }
     
     for (int i=start; i< 4; i++){
-        if(res & (0x01<<((3-i)*8))){
+        if(res & (0x01<<((3-i)<<3))){
             return i;
         }
     }
     return 4;
 }
-#endif
 
 void shift_same(uint8_t start, unsigned int *a){
     *a = 0;
@@ -105,8 +109,8 @@ unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 
    do {
         uint8_t a = *_i->ptr;
-        ret |= a << 8 *(3-i);
-        _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t), &_i->sr);
+        ret |= a << ((3-i)<<3);
+        _i->ptr = seqread_get(_)i->ptr, sizeof(uint8_t), &_i->sr);
 
         i++;
    } while(i<4);
@@ -117,11 +121,11 @@ unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 
 void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
     int i =4-len;
-    *a = *a << len*8;
+    *a = *a << (len<<3);
     // *a = *a << len*8; 
    do {
 
-        *a = *a | (*_i->ptr) << (8 *(3-i));
+        *a = *a | (*_i->ptr) << ((3-i)<<3);
         _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t), &_i->sr);
         // printf("READ_X_BYTE a %X i %d len %d\n", *a, i, len);
         i++;
@@ -135,15 +139,19 @@ bool STRSTR_4_BYTE(unsigned int a, int* next){
     unsigned int b = 0;
 
     for(j=0; j< 4; j++) {
-        shift_same(key_cache>>((3-j)*8), &b);
+        shift_same(key_cache>>((3-j)<<3), &b);
         __builtin_cmpb4_rrr(res, a, b);
+
+        if(j==0) {
+            *next = find_next_set_bit(res, j+1);
+        }
+
         // jth byte matches
-        if(res & (0x01<<((3-j)*8))){
+        if(res & (0x01<<((3-j)<<3))){
             continue;
         }
         else {
-            // 00010001 => 1
-            *next = find_next_set_bit(res, j);
+            // *next = find_next_set_bit(res, j); TBD
             break;
         }
     }
@@ -170,7 +178,7 @@ bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
         *kth_byte = 0;
         for(int k=0; k<4; k++) {
         // locate the \n byte
-            if(((res>>((3-k)*8)) & 0x01) != 0) {
+            if(((res>>((3-k)<<3)) & 0x01) != 0) {
                 *kth_byte = k;
             }
         }
@@ -314,15 +322,6 @@ bool dpu_strstr(struct in_buffer_context *input) {
                 input->curr +=4;
                 break;
         }
-        // printf("a %x  prechar %x next %d\n", a, pre_char, next);
-      
-        //  += 4- next;
-
-        // if(dbg_cnt == 72000) {
-
-        //     break;
-        // }
-        // dbg_cnt++;
 
     } while(input->curr < input->length|| input->curr+4 < input->length);
 
@@ -355,7 +354,7 @@ int main()
     uint32_t input_start = input_offset[idx] - input_offset[0];
 
     input.cache = seqread_alloc();
-    input.ptr = seqread_init(input.cache, DPU_BUFFER + input_start+adjust_offset, &input.sr);
+    input.ptr = seqread_init(input.cache, DPU_BUFFER + input_start + adjust_offset, &input.sr);
     input.mram_org = DPU_BUFFER + input_start + adjust_offset;
     input.curr = 0;
 	input.length = 0;
@@ -395,55 +394,4 @@ int main()
 }
 
 
-
-#if 0
-bool dpu_strstr(struct in_buffer_context *input) {
-    int j = 0; 
-    unsigned int res = 0;
-    unsigned int b = 0;
-    int next = 0;
-
-#if 1
-    do {
-        #if 1
-        unsigned int a = READ_4_BYTE(input);
-
-        // input->ptr = (uint8_t*)p_str;
-        for(j=0; j< 4; j++) {
-                shift_same(key_cache+j, &b);
-                __builtin_cmpb4_rrr(res, a, b);
-                // jth byte matches
-                if(res & (0x01<<((3-j)*8))){
-                    continue;
-                }
-                else {
-                    // 00010001 => 1
-                    next = find_next_set_bit(res, j);
-                    break;
-                }
-            }
-        #endif
-        if (j==4) {
-            return true;
-        }
-
-        if(next != 4) {
-            input->ptr -= next;  
-        }
-  
-        // if(me() == 0){
-        //     dbg_printf("tasklet %d: sequential reader reads %x count %d, next %d \n", me(), a, 0, next);
-        // }
-        
-        input->curr += 4- next;
-
-        // if(dbg_cnt == 3) {
-        //     break;
-        // }
-        // dbg_cnt++;
-    } while(input->curr < input->length|| input->curr+4 < input->length);
-#endif
-    return false;
-}
-#endif
 
