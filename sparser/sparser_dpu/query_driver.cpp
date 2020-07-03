@@ -291,7 +291,7 @@ void process_query(char *raw, long length, int query_index) {
 	bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
 #if MEM
 	 uint8_t *ret_bufs[NR_DPUS];
-	 uint32_t records_len[NR_DPUS];
+	 uint32_t records_len[NR_DPUS] = {0};
 	 for (int i=0; i<NR_DPUS; i++) {
 	 	ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
 	 }
