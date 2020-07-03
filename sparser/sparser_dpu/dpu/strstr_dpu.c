@@ -140,6 +140,26 @@ bool STRSTR_4_BYTE(unsigned int a, int* next){
     return false; 
 }
 
+bool STRSTR_4_BYTE_OP(unsigned int a, int* next){
+    unsigned int res = 0;
+    unsigned int b = 0;
+
+    shift_same(key_cache[0]>>24, &b);
+    __builtin_cmpb4_rrr(res, a, b);
+    *next = find_next_set_bit(res, 1);
+
+    if(res & (0x01<<24)) {
+        // compare the following 4 bytes
+        res = 0x0;
+         __builtin_cmpb4_rrr(res, a, key_cache[0]);
+         if(res == 0x01010101) {
+             return true;
+         }
+    }
+
+    return false;
+}
+
 
 /* check if the record contains \n */
 bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
@@ -232,7 +252,7 @@ bool dpu_strstr(struct in_buffer_context *input) {
     unsigned int a = READ_4_BYTE(input);
 
     do {
-        if (STRSTR_4_BYTE(a, &next)) {
+        if (STRSTR_4_BYTE_OP(a, &next)) {
             rec.str_found = true;
             // stop reading, move to copy
             dbg_printf("strstr found\n");
