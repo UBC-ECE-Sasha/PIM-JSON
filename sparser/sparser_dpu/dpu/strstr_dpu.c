@@ -15,7 +15,7 @@
 
 #include "strstr_dpu.h"
 
-/* dpu marcos */
+/* dpu macros */
 #define BLOCK_SIZE 1024 
 #define MAX_BODY_ALLOCTE 4096
 #define MIN_RECORDS_LENGTH 8
@@ -46,7 +46,7 @@ static int find_next_set_bit(unsigned int res, int start) {
     }
     
     for (int i=start; i< 4; i++){
-        if(res & (0x01<<((3-i)*8))){
+        if(res & (0x01<<((3-i)<<3))){
             return i;
         }
     }
@@ -99,7 +99,7 @@ unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 
 void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
     int i =4-len;
-    *a = *a << len*8;
+    *a = *a << (len<<3);
    do {
 
         *a = *a | (*_i->ptr) << (8 *(3-i));
@@ -115,7 +115,7 @@ bool STRSTR_4_BYTE(unsigned int a, int* next){
     unsigned int b = 0;
 
     for(j=0; j< 4; j++) {
-        shift_same(key_cache[0]>>((3-j)*8), &b);
+        shift_same(key_cache[0]>>((3-j)<<3), &b);
         __builtin_cmpb4_rrr(res, a, b);
         //TODO op - needs more test
         if(j==0) {
@@ -123,7 +123,7 @@ bool STRSTR_4_BYTE(unsigned int a, int* next){
         }
 
         // jth byte matches
-        if(res & (0x01<<((3-j)*8))){
+        if(res & (0x01<<((3-j)<<3))){
             continue;
         }
         else {
@@ -154,7 +154,7 @@ bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
         *kth_byte = 0;
         for(int k=0; k<4; k++) {
         // locate the \n byte
-            if(((res>>((3-k)*8)) & 0x01) != 0) {
+            if(((res>>((3-k)<<3)) & 0x01) != 0) {
                 *kth_byte = k;
             }
         }
