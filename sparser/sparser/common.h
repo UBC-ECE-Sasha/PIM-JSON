@@ -139,7 +139,7 @@ long read_local(const char *filename_uri, char **buf, unsigned long start,
     return length + 1;
 }
 
-#define ALIGN(_p, _width) (((long)_p + (_width-1)) & (0-_width))
+#define ALIGN_LONG(_p, _width) (((long)_p + (_width-1)) & (0-_width))
 long read_all_align(const char *filename, char **buf) {
     FILE *f = fopen(filename, "r");
     if (!f) {
@@ -152,7 +152,7 @@ long read_all_align(const char *filename, char **buf) {
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);  // same as rewind(f);
 
-    long adjusted_fsize = ALIGN(fsize + 64, 64);
+    long adjusted_fsize = ALIGN_LONG(fsize + 64, 64);
     char *string = (char *)malloc(adjusted_fsize);
     fread(string, fsize, 1, f);
     fclose(f);
