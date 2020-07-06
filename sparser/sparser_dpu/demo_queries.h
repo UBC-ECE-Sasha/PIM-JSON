@@ -39,6 +39,11 @@ SELECT count(*)\n\
 FROM tweets\n\
 WHERE text contains \"Trump\"";
 
+const char *DEMO_QUERY4_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"Chinese\"";
+
 json_passed_t demo_q1_text(const char *value, void *) {
     return strstr(value, "Trump") && strstr(value, "Putin") ? JSON_PASS : JSON_FAIL;
 }
@@ -49,6 +54,10 @@ json_passed_t demo_q2_text(const char *value, void *) {
 
 json_passed_t demo_q3_text(const char *value, void *) {
     return strstr(value, "Trump") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q4_text(const char *value, void *) {
+    return strstr(value, "Chinese") ? JSON_PASS : JSON_FAIL;
 }
 
 json_query_t demo_query1() {
@@ -66,6 +75,12 @@ json_query_t demo_query2() {
 json_query_t demo_query3() {
     json_query_t query = json_query_new();
     json_query_add_string_filter(query, "text", demo_q3_text);
+    return query;
+}
+
+json_query_t demo_query4() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q4_text);
     return query;
 }
 
@@ -93,9 +108,16 @@ static const char **sparser_demo_query3(int *count) {
     return predicates;
 }
 
+static const char **sparser_demo_query4(int *count) {
+    static const char *_1 = "Chinese";
+    static const char *predicates[] = {_1, NULL};
+    *count = 1;
+    return predicates;
+}
+
 // ************** All the queries we want to test **************
-const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, NULL};
-const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, NULL};
-const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, NULL };
+const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, NULL};
+const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, NULL};
+const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, NULL };
 
 #endif
