@@ -205,7 +205,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         }
     } 
 #endif
-
+    gettimeofday(&start, NULL);
     int i =0;
     DPU_FOREACH (set, dpu) {
         DPU_ASSERT(dpu_copy_from(dpu, "output_length", 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
@@ -214,4 +214,8 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         }
         i++;
     }
+    gettimeofday(&end, NULL);
+    start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	end_time = end.tv_sec + end.tv_usec / 1000000.0;    
+     printf("dpu copy back records took %g s\n", end_time - start_time);
 }
