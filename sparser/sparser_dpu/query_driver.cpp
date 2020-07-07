@@ -203,6 +203,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	long parse_suceed =0;
 
 	// XXX Generate a schedule
+	gettimeofday(&start, NULL);
 	#if ENABLE_CALIBRATE 
 	sparser_query_t *query = sparser_calibrate(data, length, '\n', predicates, _rapidjson_parse_callback, &cdata);
 	#elif
@@ -213,6 +214,10 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	dbg_printf("dpu searched query is %s query count %d\n", query->queries[0], query->count);
 	// get the filtered buffer
 	#endif
+	gettimeofday(&end, NULL);
+	double start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("host process (calibrate) %g s\n", end_time - start_time);	
 
 	// get the return buffer array ready
 	uint8_t *ret_bufs[NR_DPUS];
@@ -240,8 +245,8 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 
 	double elapsed = time_stop(s);
   	printf("RapidJSON with Sparser plus DPU:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", parse_suceed, elapsed);
-	double start_time = start.tv_sec + start.tv_usec / 1000000.0;
-	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+	start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("host process (parser) %g s\n", end_time - start_time);
 }	
 

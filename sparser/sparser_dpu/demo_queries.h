@@ -42,7 +42,23 @@ WHERE text contains \"Trump\"";
 const char *DEMO_QUERY4_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"Chinese\"";
+WHERE text contains \"America\"";
+
+const char *DEMO_QUERY5_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"taco\"";
+
+const char *DEMO_QUERY6_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"burger\"";
+
+const char *DEMO_QUERY7_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"delicious\"";
+
 
 json_passed_t demo_q1_text(const char *value, void *) {
     return strstr(value, "Trump") && strstr(value, "Putin") ? JSON_PASS : JSON_FAIL;
@@ -57,7 +73,19 @@ json_passed_t demo_q3_text(const char *value, void *) {
 }
 
 json_passed_t demo_q4_text(const char *value, void *) {
-    return strstr(value, "Chinese") ? JSON_PASS : JSON_FAIL;
+    return strstr(value, "America") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q5_text(const char *value, void *) {
+    return strstr(value, "taco") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q6_text(const char *value, void *) {
+    return strstr(value, "burger") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q7_text(const char *value, void *) {
+    return strstr(value, "delicious") ? JSON_PASS : JSON_FAIL;
 }
 
 json_query_t demo_query1() {
@@ -84,6 +112,24 @@ json_query_t demo_query4() {
     return query;
 }
 
+json_query_t demo_query5() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q5_text);
+    return query;
+}
+
+json_query_t demo_query6() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q6_text);
+    return query;
+}
+
+json_query_t demo_query7() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q7_text);
+    return query;
+}
+
 static const char **sparser_demo_query1(int *count) {
     static const char *_1 = "Trump";
     static const char *_2 = "Putin";
@@ -92,7 +138,6 @@ static const char **sparser_demo_query1(int *count) {
     *count = 2;
     return predicates;
 }
-
 
 static const char **sparser_demo_query2(int *count) {
     static const char *_1 = "aabaa";
@@ -109,15 +154,36 @@ static const char **sparser_demo_query3(int *count) {
 }
 
 static const char **sparser_demo_query4(int *count) {
-    static const char *_1 = "Chinese";
+    static const char *_1 = "America";
+    static const char *predicates[] = {_1, NULL};
+    *count = 1;
+    return predicates;
+}
+
+static const char **sparser_demo_query5(int *count) {
+    static const char *_1 = "taco";
+    static const char *predicates[] = {_1, NULL};
+    *count = 1;
+    return predicates;
+}
+
+static const char **sparser_demo_query6(int *count) {
+    static const char *_1 = "burger";
+    static const char *predicates[] = {_1, NULL};
+    *count = 1;
+    return predicates;
+}
+
+static const char **sparser_demo_query7(int *count) {
+    static const char *_1 = "delicious";
     static const char *predicates[] = {_1, NULL};
     *count = 1;
     return predicates;
 }
 
 // ************** All the queries we want to test **************
-const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, NULL};
-const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, NULL};
-const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, NULL };
+const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, NULL};
+const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, NULL};
+const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, NULL };
 
 #endif
