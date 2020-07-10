@@ -164,7 +164,7 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
     if(CHECK_4_BYTE(a, &kth_byte)) {
         // finish reading a record                
         rec->length = input->curr - rec->org + kth_byte+1;//-(4-kth_byte-1);
-        printf("record length %d curr %d org %d kth_byte%d \n", rec->length, input->curr, rec->org, kth_byte);
+        dbg_printf("record length %d curr %d org %d kth_byte%d \n", rec->length, input->curr, rec->org, kth_byte);
         // printRecord((uint8_t*)(rec->record_start), rec->length); 
         // reset
         rec->record_start += (rec->length);
