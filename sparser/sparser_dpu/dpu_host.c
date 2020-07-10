@@ -73,7 +73,6 @@ void printRecordNoLen(char* record_start) {
         }
 
     }
-
     printf("\n");
     printf("\n");
 }
@@ -204,7 +203,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("dpu launch took %g s\n", end_time - start_time);
-#if 1
+#if HOST_DEBUG
     {
         unsigned int each_dpu = 0;
         printf("Display DPU Logs\n");
@@ -222,28 +221,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         DPU_ASSERT(dpu_copy_from(dpu, "RECORDS_OFFSETS", 0, &(record_offsets[i]), sizeof(uint32_t) * MAX_NUM_RETURNS * NR_TASKLETS));
         i++;
     }
-#if 0
-    for (i =0; i< NR_DPUS; i++) {
-        for (int j=0; j< NR_TASKLETS; j++) {
-            // char* base = input + input_offset[i][j]; //+ input_offset[i][0]%8;
-            for(int k =0; k < 16; k++) {
-                printf("%u ", record_offsets[i][j][k]);
-#if 0
-                if(record_offsets[i][j][k] != 0xDEADBAFF) {
-                    printf("\n");
-                    printRecordNoLen(base + record_offsets[i][j][k]);
 
-                }else {
-                    break;
-                }
-#endif
-            }
-            printf(" t ");
-
-        }
-        printf("\n");
-    }
-#endif
     gettimeofday(&end, NULL);
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;    

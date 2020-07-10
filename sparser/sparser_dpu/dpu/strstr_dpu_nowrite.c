@@ -29,8 +29,6 @@ __host __mram_ptr uint8_t *DPU_BUFFER;
 __host uint32_t RECORDS_OFFSETS[NR_TASKLETS][MAX_NUM_RETURNS] = {0};
 __host uint64_t input_offset[NR_TASKLETS];
 
-// MUTEX_INIT(write_mutex);
-
 /**
  * 
  * Utility functions 
@@ -165,7 +163,7 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
         // finish reading a record                
         rec->length = input->curr - rec->org + kth_byte+1;//-(4-kth_byte-1);
         dbg_printf("record length %d curr %d org %d kth_byte%d \n", rec->length, input->curr, rec->org, kth_byte);
-        // printRecord((uint8_t*)(rec->record_start), rec->length); 
+
         // reset
         rec->record_start += (rec->length);
         rec->org += rec->length;
@@ -194,16 +192,13 @@ bool dpu_strstr(struct in_buffer_context *input) {
         if ((!rec.str_found) && STRSTR_4_BYTE_OP(a, &next)) {
             rec.str_found = true;
 
-            // mutex_lock(write_mutex);
             // update offset here
             RECORDS_OFFSETS[tasklet_id][i++] = rec.record_start - input->mram_org;
-            printf("records found %u\n", rec.record_start - input->mram_org);
-            // mutex_unlock(write_mutex);
+            dbg_printf("records found %u\n", rec.record_start - input->mram_org);
         }
         else {
             CHECK_RECORD_END(a, input, &rec, &next);
         }
-        // next = CHECK_RECORD_END(a, input, &rec);
 
         switch (next) {
             case 1:
