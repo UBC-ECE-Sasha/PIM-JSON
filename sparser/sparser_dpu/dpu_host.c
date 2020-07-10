@@ -141,7 +141,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     struct timeval start;
 	struct timeval end;
         
-    length = MEGABYTE(2);//4330180661;
+    length = MEGABYTE(4);//4330180661;
 
     if(keys == NULL) {
         printf("no keys found\n");
@@ -240,7 +240,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
 
     for (i =0; i< NR_DPUS; i++) {
         for (int j=0; j< NR_TASKLETS; j++) {
-            char* base = input + input_offset[i][j] + input_offset[i][0]%8;
+            char* base = input + input_offset[i][j]; //+ input_offset[i][0]%8;
             for(int k =0; k < 16; k++) {
                 printf("%u ", record_offsets[i][j][k]);
 
