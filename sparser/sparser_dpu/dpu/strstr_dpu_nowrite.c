@@ -70,7 +70,7 @@ uint32_t roundUp8(uint32_t a) {
  */
 void printRecord(uint8_t* record_start, uint32_t length) {
     for(int i =0; i< (int)length; i++){
-        char c = record_start[i];
+        char c = (char)record_start[i];
         putchar(c);
     }
     printf("\n");
@@ -119,6 +119,7 @@ bool STRSTR_4_BYTE_OP(unsigned int a, int* next){
         res = 0x0;
          __builtin_cmpb4_rrr(res, a, key_cache[0]);
          if(res == 0x01010101) {
+             *next = 4;
              return true;
          }
     }
@@ -158,25 +159,22 @@ bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
 *
 *
 ****************************************************************************************************/
-int CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct record_descrip* rec) {
-    int next = 0;
+void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct record_descrip* rec, int * next) {
     int kth_byte = 0;
     
     if(CHECK_4_BYTE(a, &kth_byte)) {
         // finish reading a record                
-        rec->length = input->curr - rec->org -(4-kth_byte-1);
-        dbg_printf("record length %d curr %d org %d kth_byte%d \n", rec->length, input->curr, rec->org, kth_byte);
+        rec->length = input->curr - rec->org + kth_byte+1;//-(4-kth_byte-1);
+        printf("record length %d curr %d org %d kth_byte%d \n", rec->length, input->curr, rec->org, kth_byte);
+        // printRecord((uint8_t*)(rec->record_start), rec->length); 
         // reset
         rec->record_start += (rec->length);
-        rec->str_found = 0;
-
         rec->org += rec->length;
         rec->length =0;
         rec->str_found = false;
-        next = (kth_byte+1);
+        *next = (kth_byte+1);
     }
 
-    return next;
 }
 
 
@@ -200,11 +198,13 @@ bool dpu_strstr(struct in_buffer_context *input) {
             // mutex_lock(write_mutex);
             // update offset here
             RECORDS_OFFSETS[tasklet_id][i++] = rec.record_start - input->mram_org;
-            printf("records found\n");
+            printf("records found %u\n", rec.record_start - input->mram_org);
             // mutex_unlock(write_mutex);
         }
-
-        next = CHECK_RECORD_END(a, input, &rec);
+        else {
+            CHECK_RECORD_END(a, input, &rec, &next);
+        }
+        // next = CHECK_RECORD_END(a, input, &rec);
 
         switch (next) {
             case 1:
@@ -222,6 +222,7 @@ bool dpu_strstr(struct in_buffer_context *input) {
         }
     } while(input->curr < input->length|| input->curr+4 < input->length);
 
+    RECORDS_OFFSETS[tasklet_id][i] = 0xDEADBAFF;
     return false;
 }
 

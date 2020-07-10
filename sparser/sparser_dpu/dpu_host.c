@@ -141,7 +141,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     struct timeval start;
 	struct timeval end;
         
-    length = MEGABYTE(1);//4330180661;
+    length = MEGABYTE(2);//4330180661;
 
     if(keys == NULL) {
         printf("no keys found\n");
@@ -193,7 +193,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint64_t) * NR_TASKLETS));
         DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- adjust_offset, input_length[dpu_id], DPU_PRIMARY_MRAM));
+        DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- adjust_offset, input_length[dpu_id]));
         dpu_id++;
     }
 
@@ -240,12 +240,14 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
 
     for (i =0; i< NR_DPUS; i++) {
         for (int j=0; j< NR_TASKLETS; j++) {
+            char* base = input + input_offset[i][j] + input_offset[i][0]%8;
             for(int k =0; k < 16; k++) {
                 printf("%u ", record_offsets[i][j][k]);
-                char* base = input + input_offset[i][j] + input_offset[dpu_id][0]%8; 
+
+#if 0                 
                 if (k == 0 && record_offsets[i][j][0] == 0 && record_offsets[i][j][1] != 0) {
                     printf("\n");
-                    // printRecordNoLen(input + input_offset[i][j]-input_offset[i][0] - input_offset[i][0]%8 + record_offsets[i][j][k]);
+                    printRecordNoLen(input + input_offset[i][j]-input_offset[i][0] - input_offset[i][0]%8 + record_offsets[i][j][k]);
                 }
                 else {
                     if(record_offsets[i][j][k] != 0) {
@@ -253,7 +255,19 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
                         printRecordNoLen(base + record_offsets[i][j][k] + 4);
                     }
                 }
+#endif
+#if 1
+                if(record_offsets[i][j][k] != 0xDEADBAFF) {
+                    printf("\n");
+                    printRecordNoLen(base + record_offsets[i][j][k]);
+
+                }else {
+                    break;
+                }
+#endif
             }
+            printf(" t ");
+
         }
         printf("\n");
     }
