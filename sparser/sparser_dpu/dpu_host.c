@@ -63,6 +63,21 @@ void printRecord(char* record_start, uint32_t length) {
     printf("\n");
 }
 
+void printRecordNoLen(char* record_start) {
+    for(uint32_t i =0; i< 4096; i++){
+        if(record_start[i] != '\n') {
+            printf("%c", record_start[i]);
+        }
+        else {
+            break;
+        }
+
+    }
+
+    printf("\n");
+    printf("\n");
+}
+
 
 // give a large file we need to divide the file into proper chunks for each dpu and each tasklet
 bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
@@ -144,7 +159,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     gettimeofday(&start, NULL);
     unsigned int dpu_id = 0;
     uint32_t dpu_mram_buffer_start = 1024 * 1024;
-    uint32_t dpu_mram_ret_buffer_start[NR_DPUS] = {0};
+    // uint32_t dpu_mram_ret_buffer_start[NR_DPUS] = {0};
     uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
     uint32_t input_length[NR_DPUS] = {0};
 
@@ -170,11 +185,11 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         uint32_t adjust_offset = input_offset[dpu_id][0]%8;
         input_length[dpu_id] += adjust_offset;
         input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
-        dpu_mram_ret_buffer_start[dpu_id] = ALIGN(dpu_mram_buffer_start + input_length[dpu_id] + 64, 64);
+        // dpu_mram_ret_buffer_start[dpu_id] = ALIGN(dpu_mram_buffer_start + input_length[dpu_id] + 64, 64);
         // DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, &key, sizeof(unsigned int)));
          DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, XSTR(RECORDS_BUFFER), 0, &(dpu_mram_ret_buffer_start[dpu_id]), sizeof(uint32_t)));
+        // DPU_ASSERT(dpu_copy_to(dpu, XSTR(RECORDS_BUFFER), 0, &(dpu_mram_ret_buffer_start[dpu_id]), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint64_t) * NR_TASKLETS));
         DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
@@ -194,12 +209,12 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("dpu launch took %g s\n", end_time - start_time);
-#if HOST_DEBUG
+#if 1
     {
         unsigned int each_dpu = 0;
-        dbg_printf("Display DPU Logs\n");
+        printf("Display DPU Logs\n");
         DPU_FOREACH (set, dpu) {
-        dbg_printf("DPU#%d:\n", each_dpu);
+        printf("DPU#%d:\n", each_dpu);
         DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
         each_dpu++;
         }
@@ -207,6 +222,9 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
 #endif
     gettimeofday(&start, NULL);
     int i =0;
+    uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS] = {0};
+
+#if 0
     DPU_FOREACH (set, dpu) {
         DPU_ASSERT(dpu_copy_from(dpu, "output_length", 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
         if(records_len[i] != 0){
@@ -214,6 +232,35 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         }
         i++;
     }
+#endif
+    DPU_FOREACH (set, dpu) {
+        DPU_ASSERT(dpu_copy_from(dpu, "RECORDS_OFFSETS", 0, &(record_offsets[i]), sizeof(uint32_t) * MAX_NUM_RETURNS * NR_TASKLETS));
+        i++;
+    }
+
+    for (i =0; i< NR_DPUS; i++) {
+        for (int j=0; j< NR_TASKLETS; j++) {
+            for(int k =0; k < 16; k++) {
+                printf("%u ", record_offsets[i][j][k]);
+                char* base = input + input_offset[i][j] + input_offset[dpu_id][0]%8; 
+                if (k == 0 && record_offsets[i][j][0] == 0 && record_offsets[i][j][1] != 0) {
+                    printf("\n");
+                    // printRecordNoLen(input + input_offset[i][j]-input_offset[i][0] - input_offset[i][0]%8 + record_offsets[i][j][k]);
+                }
+                else {
+                    if(record_offsets[i][j][k] != 0) {
+                        printf("\n");
+                        printRecordNoLen(base + record_offsets[i][j][k] + 4);
+                    }
+                }
+            }
+        }
+        printf("\n");
+    }
+
+    ret[0][0] = ret[0][0];
+    records_len = records_len;
+
     gettimeofday(&end, NULL);
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;    

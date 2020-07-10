@@ -233,6 +233,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	multi_dpu_test(data, keys, query->count,length, ret_bufs, records_len);
 
 	//process the return buffer
+#if 0 
 	long candidates = 0;
 	gettimeofday(&start, NULL);
 	for (i=0; i<NR_DPUS; i++) {
@@ -241,6 +242,8 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 		}
 	}
 	printf("return buffer total valid candidates %ld\n", candidates);
+#endif 
+
 	gettimeofday(&end, NULL);
 
 	double elapsed = time_stop(s);
