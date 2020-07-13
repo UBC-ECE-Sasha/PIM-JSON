@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/time.h>
+#include <limits.h>
 
 #include "dpu_host.h"
 #include "../dpu_common.h"
@@ -183,14 +184,20 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         input_length[dpu_id] += adjust_offset;
         input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
         for (int t=0; t<NR_TASKLETS; t++) {
-            temp_offset[t] = input_offset[dpu_id][t] - input_offset[dpu_id][0];
+            if(input_offset[dpu_id][t] - input_offset[dpu_id][0] > UINT_MAX) {
+                printf("offset overflow exit now \n");
+                return;
+            }
+            else {
+                temp_offset[t] = (uint32_t)(input_offset[dpu_id][t] - input_offset[dpu_id][0]);
+            }
         }
         DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
         DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- adjust_offset, input_length[dpu_id]));
+        DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- (uint64_t)adjust_offset, input_length[dpu_id]));
         dpu_id++;
     }
 
