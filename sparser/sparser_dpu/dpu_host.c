@@ -177,14 +177,17 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     #endif
   // unsigned int key = 0x72756D70;
   //   unsigned int key = 0x61616261;
-
+    uint32_t temp_offset[NR_TASKLETS] = {0};
     DPU_FOREACH (set, dpu) {
         uint32_t adjust_offset = input_offset[dpu_id][0]%8;
         input_length[dpu_id] += adjust_offset;
         input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
+        for (int t=0; t<NR_TASKLETS; t++) {
+            temp_offset[t] = input_offset[dpu_id][t] - input_offset[dpu_id][0];
+        }
         DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint64_t) * NR_TASKLETS));
+        DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
         DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- adjust_offset, input_length[dpu_id]));

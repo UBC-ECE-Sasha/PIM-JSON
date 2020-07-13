@@ -27,7 +27,7 @@ __host uint32_t adjust_offset = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 __host __mram_ptr uint8_t *DPU_BUFFER;
 __host uint32_t RECORDS_OFFSETS[NR_TASKLETS][MAX_NUM_RETURNS] = {0};
-__host uint64_t input_offset[NR_TASKLETS];
+__host uint32_t input_offset[NR_TASKLETS];
 
 /**
  * 
@@ -232,7 +232,7 @@ int main()
 		return 0;
 	}   
     struct in_buffer_context input;
-    uint32_t input_start = input_offset[idx] - input_offset[0];
+    uint32_t input_start = input_offset[idx];
 
     input.cache = seqread_alloc();
     input.mram_org = DPU_BUFFER + input_start + adjust_offset;
