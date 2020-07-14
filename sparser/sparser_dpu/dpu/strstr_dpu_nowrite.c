@@ -25,7 +25,8 @@ __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
-__host __mram_ptr uint8_t *DPU_BUFFER;
+// __host __mram_ptr uint8_t *DPU_BUFFER;
+uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(36)];
 __mram_noinit uint32_t RECORDS_OFFSETS[NR_TASKLETS][MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
 
