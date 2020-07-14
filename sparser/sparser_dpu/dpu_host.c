@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include <time.h>
 #include <sys/time.h>
+#include <limits.h>
 
 #include "dpu_host.h"
 #include "../dpu_common.h"
@@ -59,6 +60,20 @@ void printRecord(char* record_start, uint32_t length) {
         printf("%c", record_start[i]);
     }
 
+    printf("\n");
+    printf("\n");
+}
+
+void printRecordNoLen(char* record_start) {
+    for(uint32_t i =0; i< 4096; i++){
+        if(record_start[i] != '\n') {
+            printf("%c", record_start[i]);
+        }
+        else {
+            break;
+        }
+
+    }
     printf("\n");
     printf("\n");
 }
@@ -119,14 +134,14 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
 *
 *
 ****************************************************************************************************/
-void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long length, uint8_t** ret, uint32_t *records_len){
+void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long length, uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS]){
     struct dpu_set_t set, dpu;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
     struct timeval start;
 	struct timeval end;
         
-    length = MEGABYTE(1);//4330180661;
+    length = MEGABYTE(2);//4330180661;
 
     if(keys == NULL) {
         printf("no keys found\n");
@@ -144,8 +159,6 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     gettimeofday(&start, NULL);
     unsigned int dpu_id = 0;
     uint32_t dpu_mram_buffer_start = 1024 * 1024;
-    uint32_t dpu_mram_ret_buffer_start[NR_DPUS] = {0};
-    uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
     uint32_t input_length[NR_DPUS] = {0};
 
     calculate_offset(input, length, input_offset, input_length);
@@ -165,20 +178,26 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     #endif
   // unsigned int key = 0x72756D70;
   //   unsigned int key = 0x61616261;
-
+    uint32_t temp_offset[NR_TASKLETS] = {0};
     DPU_FOREACH (set, dpu) {
         uint32_t adjust_offset = input_offset[dpu_id][0]%8;
         input_length[dpu_id] += adjust_offset;
         input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
-        dpu_mram_ret_buffer_start[dpu_id] = ALIGN(dpu_mram_buffer_start + input_length[dpu_id] + 64, 64);
-        // DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, &key, sizeof(unsigned int)));
-         DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
+        for (int t=0; t<NR_TASKLETS; t++) {
+            if(input_offset[dpu_id][t] - input_offset[dpu_id][0] > UINT_MAX) {
+                printf("offset overflow exit now \n");
+                return;
+            }
+            else {
+                temp_offset[t] = (uint32_t)(input_offset[dpu_id][t] - input_offset[dpu_id][0]);
+            }
+        }
+        DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, XSTR(RECORDS_BUFFER), 0, &(dpu_mram_ret_buffer_start[dpu_id]), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint64_t) * NR_TASKLETS));
+        DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
         DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
         DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- adjust_offset, input_length[dpu_id], DPU_PRIMARY_MRAM));
+        DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- (uint64_t)adjust_offset, input_length[dpu_id]));
         dpu_id++;
     }
 
@@ -197,9 +216,9 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
 #if HOST_DEBUG
     {
         unsigned int each_dpu = 0;
-        dbg_printf("Display DPU Logs\n");
+        printf("Display DPU Logs\n");
         DPU_FOREACH (set, dpu) {
-        dbg_printf("DPU#%d:\n", each_dpu);
+        printf("DPU#%d:\n", each_dpu);
         DPU_ASSERT(dpulog_read_for_dpu(dpu.dpu, stdout));
         each_dpu++;
         }
@@ -207,13 +226,12 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
 #endif
     gettimeofday(&start, NULL);
     int i =0;
+
     DPU_FOREACH (set, dpu) {
-        DPU_ASSERT(dpu_copy_from(dpu, "output_length", 0, (uint8_t*)&(records_len[i]), sizeof(uint32_t)));
-        if(records_len[i] != 0){
-            DPU_ASSERT(dpu_copy_from_mram(dpu.dpu, (uint8_t*)(ret[i]), dpu_mram_ret_buffer_start[i], ALIGN(records_len[i]+16, 8), DPU_PRIMARY_MRAM));
-        }
+        DPU_ASSERT(dpu_copy_from(dpu, "RECORDS_OFFSETS", 0, &(record_offsets[i]), sizeof(uint32_t) * MAX_NUM_RETURNS * NR_TASKLETS));
         i++;
     }
+
     gettimeofday(&end, NULL);
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;    

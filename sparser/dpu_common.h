@@ -4,7 +4,7 @@
 #define XSTR(x) STR(x)
 #define STR(x) #x
 #include "../../PIM-common/common/include/common.h"
-// /* DPU variable that will be read of write by the host */
+// /* DPU variable that will be read of written by the host */
 #define DPU_BUFFER dpu_mram_buffer
 #define DPU_CACHES dpu_wram_caches
 #define DPU_RESULTS dpu_wram_results
@@ -16,5 +16,6 @@
 #define MAX_KEY_SIZE 8
 #define RETURN_RECORDS_SIZE (8<<20)
 #define MAX_RECORD_SIZE 2048
+#define MAX_NUM_RETURNS 1024
 
 #endif /* __DPU_COMMON_H__ */

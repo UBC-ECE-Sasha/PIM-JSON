@@ -132,54 +132,15 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 }
 
 
-long process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata, long* candidates){
-	long n_succeed = 0;
-	long record_count = 0;
-	
-	/// Last byte in the data.
-	char *input_last_byte = buf + length; //-1;
-	// Points to the end of the current record.
-	char *current_record_end;
-	// Points to the start of the current record.
-	char *current_record_start;
-
-	current_record_start = buf;
-	while (current_record_start < input_last_byte) {
-		record_count++;
-			current_record_end = (char *)memchr(current_record_start, '\n',
-          input_last_byte - current_record_start);		
-			if (!current_record_end) {
-				current_record_end = input_last_byte;
-			}
-			size_t record_length = current_record_end - current_record_start+1;
-			// magic number
-			if( record_length > 32 ) {
-				(*candidates) += 1;
-#if HOST_DEBUG
-				dbg_printf("\n--new-record --- cpu record length %d\n", record_length);
-				int n_c =0;
-				for (int k=0; k< record_length; k++){
-						char c;
-						c= current_record_start[k];
-						if(c == '\0') {
-							n_c++;
-						}
-						putchar(c);
-				}
-				dbg_printf("number of null char in the array is %d\n", n_c);
-				dbg_printf("\n");		
-#endif	
-				if (_rapidjson_parse_callback_dpu(current_record_start, cdata, record_length)) {
-						n_succeed++;
-				}	
-			} 			
-				
-			
-			// Update to point to the next record. The top of the loop will update the remaining variables.
-			current_record_start = current_record_end + 1;
+long process_return_buffer(char* record_start, callback_data* cdata, uint64_t search_len) {
+    int pass = 0;
+	char * record_end = (char *)memchr(record_start, '\n', search_len);
+    size_t record_length = record_end - record_start+1;
+	if (_rapidjson_parse_callback_dpu(record_start, cdata, record_length)) {
+		pass = 1;
 	}
 
-	return n_succeed;
+	return pass;
 }
 
 
@@ -220,26 +181,33 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
     printf("host process (calibrate) %g s\n", end_time - start_time);	
 
 	// get the return buffer array ready
-	uint8_t *ret_bufs[NR_DPUS];
-	uint32_t records_len[NR_DPUS];
 	unsigned int keys[query->count];
 	queries_to_keys(query, keys);
 
-	int i=0;
-	for (i=0; i<NR_DPUS; i++) {
-		ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
-	}
-
-	multi_dpu_test(data, keys, query->count,length, ret_bufs, records_len);
+	uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS] = {0};
+	uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
+	multi_dpu_test(data, keys, query->count,length, record_offsets, input_offset);
 
 	//process the return buffer
 	long candidates = 0;
 	gettimeofday(&start, NULL);
-	for (i=0; i<NR_DPUS; i++) {
-		if (records_len[i] != 0) {
-			parse_suceed += process_return_buffer((char*)ret_bufs[i], records_len[i], &cdata, &candidates);
+	for (int i =0; i< NR_DPUS; i++) {
+		for (int j=0; j< NR_TASKLETS; j++) {
+			char* base = data + input_offset[i][j];
+			uint32_t *temp = record_offsets[i][j];
+			uint32_t len = (j!= (NR_TASKLETS-1) ? (record_offsets[i][j+1] - record_offsets[i][j]) : len); // could be buggy
+			for(int k =0; k < MAX_NUM_RETURNS; k++) {
+				if(temp[k] != 0xDEADBAFF) {
+					candidates++;
+					parse_suceed += process_return_buffer(base+temp[k], &cdata, len - temp[k]);
+				}
+				else {
+					break;
+				}
+			}
 		}
 	}
+
 	printf("return buffer total valid candidates %ld\n", candidates);
 	gettimeofday(&end, NULL);
 
@@ -315,13 +283,14 @@ void process_query(char *raw, long length, int query_index) {
 	}
 #endif
 
-
 	json_query_t query = demo_queries[query_index]();
 	bench_rapidjson_engine(raw, length, query, query_index);
 
 
   free_ascii_rawfilters(&d);
 }
+
+
 
 void print_queries(int num_queries) {
 	for (int i = 0; i < num_queries; i++) {
