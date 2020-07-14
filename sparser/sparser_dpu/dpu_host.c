@@ -80,7 +80,7 @@ void printRecordNoLen(char* record_start) {
 
 
 // give a large file we need to divide the file into proper chunks for each dpu and each tasklet
-bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
+bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
     long dpu_blocksize = (ALIGN_LONG(length, 8)) / NR_DPUS;
     int dpu_indx = 0;
     int tasklet_index = 0;
@@ -115,7 +115,7 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
 
                 o_end = (tasklet_index+1) * t_blocksize + input_offset[dpu_indx][0];
                 r_end = memchr(input+o_end, '\n', length- o_end);
-                input_offset[dpu_indx][tasklet_index+1] = (uint32_t)(r_end-input +1 - (uint64_t)input_offset[dpu_indx][0]);
+                input_offset[dpu_indx][tasklet_index+1] = (r_end-input +1 - (uint64_t)input_offset[dpu_indx][0]);
                 #if HOST_DEBUG
                     dbg_printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
                 #endif
@@ -135,7 +135,7 @@ bool calculate_offset(char *input, long length, uint32_t input_offset[NR_DPUS][N
 *
 *
 ****************************************************************************************************/
-void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long length, uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS], uint32_t input_offset[NR_DPUS][NR_TASKLETS]){
+void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long length, uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS]){
     struct dpu_set_t set, dpu, dpu_rank;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
@@ -174,7 +174,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     printf("host preprocess took %g s \n", end_time - start_time);
 
     gettimeofday(&start, NULL);
-    // uint32_t temp_offset[NR_TASKLETS] = {0};
+    uint32_t temp_offset[NR_TASKLETS] = {0};
     uint8_t rank_id;
     UNUSED(rank_id);
 
@@ -185,19 +185,13 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         uint32_t largest_length = 0;
         DPU_FOREACH(dpu_rank, dpu)
         {
-#if 0
+#if 1
             // input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
             for (int t=0; t<NR_TASKLETS; t++) {
-                if(input_offset[dpu_id][t] - input_offset[dpu_id][0] > UINT_MAX) {
-                    printf("offset overflow exit now \n");
-                    return;
-                }
-                else {
-                    temp_offset[t] = (uint32_t)(input_offset[dpu_id][t] - input_offset[dpu_id][0]);
-                }
+                temp_offset[t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
             }
 #endif
-            DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, input_offset[dpu_id], sizeof(uint32_t) * NR_TASKLETS));
+            DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
             DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(input+input_offset[dpu_id][0])));
             largest_length = (input_length[dpu_id] > largest_length) ? input_length[dpu_id] : largest_length;

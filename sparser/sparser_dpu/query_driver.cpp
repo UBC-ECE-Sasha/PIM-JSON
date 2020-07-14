@@ -136,10 +136,17 @@ long process_return_buffer(char* record_start, callback_data* cdata, uint64_t se
     int pass = 0;
 	char * record_end = (char *)memchr(record_start, '\n', search_len);
     size_t record_length = record_end - record_start+1;
+	
 	if (_rapidjson_parse_callback_dpu(record_start, cdata, record_length)) {
 		pass = 1;
 	}
-
+#if HOST_DEBUG
+    for(uint32_t i =0; i< record_length; i++){
+        char c = record_start[i];
+        putchar(c);
+    }
+    printf("\n");
+#endif
 	return pass;
 }
 
@@ -185,7 +192,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	queries_to_keys(query, keys);
 
 	uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS] = {0};
-	uint32_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
+	uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
 	multi_dpu_test(data, keys, query->count,length, record_offsets, input_offset);
 
 	//process the return buffer
