@@ -152,7 +152,7 @@ long read_all_align(const char *filename, char **buf) {
     long fsize = ftell(f);
     fseek(f, 0, SEEK_SET);  // same as rewind(f);
 
-    long adjusted_fsize = ALIGN_LONG(fsize + 64, 64);
+    long adjusted_fsize = ALIGN_LONG(fsize + 4096, 64);
     char *string = (char *)malloc(adjusted_fsize);
     fread(string, fsize, 1, f);
     fclose(f);
