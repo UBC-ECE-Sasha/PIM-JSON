@@ -185,7 +185,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	queries_to_keys(query, keys);
 
 	uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS] = {0};
-	uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
+	uint32_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
 	multi_dpu_test(data, keys, query->count,length, record_offsets, input_offset);
 
 	//process the return buffer
