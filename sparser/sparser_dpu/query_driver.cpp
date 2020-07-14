@@ -136,10 +136,17 @@ long process_return_buffer(char* record_start, callback_data* cdata, uint64_t se
     int pass = 0;
 	char * record_end = (char *)memchr(record_start, '\n', search_len);
     size_t record_length = record_end - record_start+1;
+	
 	if (_rapidjson_parse_callback_dpu(record_start, cdata, record_length)) {
 		pass = 1;
 	}
-
+#if HOST_DEBUG
+    for(uint32_t i =0; i< record_length; i++){
+        char c = record_start[i];
+        putchar(c);
+    }
+    printf("\n");
+#endif
 	return pass;
 }
 
@@ -193,7 +200,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	gettimeofday(&start, NULL);
 	for (int i =0; i< NR_DPUS; i++) {
 		for (int j=0; j< NR_TASKLETS; j++) {
-			char* base = data + input_offset[i][j];
+			char* base = j==0 ? data + input_offset[i][j] : data + input_offset[i][j] + input_offset[i][0];
 			uint32_t *temp = record_offsets[i][j];
 			uint32_t len = (j!= (NR_TASKLETS-1) ? (record_offsets[i][j+1] - record_offsets[i][j]) : len); // could be buggy
 			for(int k =0; k < MAX_NUM_RETURNS; k++) {
@@ -207,9 +214,8 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 			}
 		}
 	}
-
-	printf("return buffer total valid candidates %ld\n", candidates);
 	gettimeofday(&end, NULL);
+	printf("return buffer total valid candidates %ld\n", candidates);
 
 	double elapsed = time_stop(s);
   	printf("RapidJSON with Sparser plus DPU:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", parse_suceed, elapsed);

@@ -112,9 +112,10 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
         t_blocksize = input_length[dpu_indx] / NR_TASKLETS;
         for(tasklet_index = 0; tasklet_index< NR_TASKLETS; tasklet_index++) {
             if(tasklet_index != NR_TASKLETS-1) {
+
                 o_end = (tasklet_index+1) * t_blocksize + input_offset[dpu_indx][0];
                 r_end = memchr(input+o_end, '\n', length- o_end);
-                input_offset[dpu_indx][tasklet_index+1] = r_end-input +1;
+                input_offset[dpu_indx][tasklet_index+1] = (r_end-input +1 - (uint64_t)input_offset[dpu_indx][0]);
                 #if HOST_DEBUG
                     dbg_printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
                 #endif
@@ -135,7 +136,7 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
 *
 ****************************************************************************************************/
 void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long length, uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS]){
-    struct dpu_set_t set, dpu;
+    struct dpu_set_t set, dpu, dpu_rank;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
     struct timeval start;
@@ -147,10 +148,15 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
         printf("no keys found\n");
         return;
     }
-    
+    // allocate DPUs
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
+
+    uint32_t dpus_per_rank = 0;
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(set, &nr_of_ranks));
+    dpus_per_rank = nr_of_dpus/nr_of_ranks;
+    printf("Got %u dpus across %u ranks (%u dpus per rank)\n", nr_of_dpus, nr_of_ranks, dpus_per_rank);
+
     #if HOST_DEBUG
         dbg_printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
     #endif
@@ -158,7 +164,7 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
 
     gettimeofday(&start, NULL);
     unsigned int dpu_id = 0;
-    uint32_t dpu_mram_buffer_start = 1024 * 1024;
+    // uint32_t dpu_mram_buffer_start = 1024 * 1024;
     uint32_t input_length[NR_DPUS] = {0};
 
     calculate_offset(input, length, input_offset, input_length);
@@ -168,40 +174,34 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     printf("host preprocess took %g s \n", end_time - start_time);
 
     gettimeofday(&start, NULL);
-    #if HOST_DEBUG
-    for(int i=0; i< NR_DPUS; i++) {
-        for (int j=0; j< NR_TASKLETS; j++) {
-            printf("%lu ", input_offset[i][j]);
-        }
-        printf("\n");
-    }
-    #endif
-  // unsigned int key = 0x72756D70;
-  //   unsigned int key = 0x61616261;
     uint32_t temp_offset[NR_TASKLETS] = {0};
-    DPU_FOREACH (set, dpu) {
-        uint32_t adjust_offset = input_offset[dpu_id][0]%8;
-        input_length[dpu_id] += adjust_offset;
-        input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
-        for (int t=0; t<NR_TASKLETS; t++) {
-            if(input_offset[dpu_id][t] - input_offset[dpu_id][0] > UINT_MAX) {
-                printf("offset overflow exit now \n");
-                return;
+    uint8_t rank_id;
+    UNUSED(rank_id);
+
+    DPU_RANK_FOREACH(set, dpu_rank, rank_id)
+    {
+        // copy data shared among ranks
+        DPU_ASSERT(dpu_copy_to(dpu_rank, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
+        uint32_t largest_length = 0;
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+#if 1
+            // input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
+            for (int t=0; t<NR_TASKLETS; t++) {
+                temp_offset[t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
             }
-            else {
-                temp_offset[t] = (uint32_t)(input_offset[dpu_id][t] - input_offset[dpu_id][0]);
-            }
+#endif
+            DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
+            DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(input+input_offset[dpu_id][0])));
+            largest_length = (input_length[dpu_id] > largest_length) ? input_length[dpu_id] : largest_length;
+            dpu_id++; 
         }
-        DPU_ASSERT(dpu_copy_to(dpu, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
-        DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
-        DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to(dpu, "adjust_offset", 0, &(adjust_offset), sizeof(uint32_t)));
-        DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0]- (uint64_t)adjust_offset, input_length[dpu_id]));
-        dpu_id++;
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "dpu_mram_buffer", 0, ALIGN(largest_length, 8), DPU_XFER_DEFAULT));
     }
 
-	gettimeofday(&end, NULL);
+    
+    gettimeofday(&end, NULL);
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;
 
@@ -226,14 +226,15 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
 #endif
     gettimeofday(&start, NULL);
     int i =0;
-
+#if 1
     DPU_FOREACH (set, dpu) {
         DPU_ASSERT(dpu_copy_from(dpu, "RECORDS_OFFSETS", 0, &(record_offsets[i]), sizeof(uint32_t) * MAX_NUM_RETURNS * NR_TASKLETS));
         i++;
     }
+#endif
 
     gettimeofday(&end, NULL);
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;    
-     printf("dpu copy back records took %g s\n", end_time - start_time);
+    printf("dpu copy back records took %g s\n", end_time - start_time);
 }

@@ -25,7 +25,8 @@ __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
-__host __mram_ptr uint8_t *DPU_BUFFER;
+// __host __mram_ptr uint8_t *DPU_BUFFER;
+uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(36)];
 __mram_noinit uint32_t RECORDS_OFFSETS[NR_TASKLETS][MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
 
@@ -235,18 +236,17 @@ int main()
     uint32_t input_start = input_offset[idx];
 
     input.cache = seqread_alloc();
-    input.mram_org = DPU_BUFFER + input_start + adjust_offset;
+    input.mram_org = DPU_BUFFER + input_start;
     input.ptr = seqread_init(input.cache, input.mram_org, &input.sr);
     input.curr = 0;
 	input.length = 0;
 
 	// Calculate the actual length this tasklet parses
 	if (idx < (NR_TASKLETS - 1)) {
-		uint32_t input_end = input_offset[idx + 1] - input_offset[0];
-		input.length = input_end - input_start;
+		input.length = input_offset[idx + 1] - input_offset[0]- input_start;
 	}
 	else {
-		input.length = input_length - input_start - adjust_offset; 
+		input.length = input_length - input_start; 
         dbg_printf("input_start: %u length: %u\n", input_start, input_length);
 	}
 #if 1    
