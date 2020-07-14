@@ -4,7 +4,7 @@
 #define XSTR(x) STR(x)
 #define STR(x) #x
 
-// /* DPU variable that will be read of write by the host */
+// /* DPU variable that will be read of written by the host */
 #define DPU_BUFFER dpu_mram_buffer
 #define DPU_CACHES dpu_wram_caches
 #define DPU_RESULTS dpu_wram_results
