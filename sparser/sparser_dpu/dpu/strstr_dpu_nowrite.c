@@ -24,6 +24,7 @@
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
+__host uint32_t query_count = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 // __host __mram_ptr uint8_t *DPU_BUFFER;
 uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(36)];
@@ -104,23 +105,29 @@ void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
 }
 
 
-bool STRSTR_4_BYTE_OP(unsigned int a, int* next){
+bool STRSTR_4_BYTE_OP(unsigned int a, int* next, uint8_t keys_succeed){
     unsigned int res = 0;
     unsigned int b = 0;
 
-    shift_same(key_cache[0]>>24, &b);
-    __builtin_cmpb4_rrr(res, a, b);
-    *next = find_next_set_bit(res, 1);
+    for (uint32_t i=0; i< query_count; i++){
 
-    if(res & (0x01<<24)) {
-        // compare the following 4 bytes
-        res = 0x0;
-         __builtin_cmpb4_rrr(res, a, key_cache[0]);
-         if(res == 0x01010101) {
-             *next = 4;
-             return true;
-         }
     }
+
+        shift_same(key_cache[key_index]>>24, &b);
+        __builtin_cmpb4_rrr(res, a, b);
+        *next = find_next_set_bit(res, 1);
+
+        if(res & (0x01<<24)) {
+            // compare the following 4 bytes
+            res = 0x0;
+            __builtin_cmpb4_rrr(res, a, key_cache[key_index]);
+            if(res == 0x01010101) {
+                *next = 4;
+                return true;
+            }
+        }
+    }
+ 
 
     return false;
 }
@@ -168,8 +175,8 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
         // reset
         rec->record_start += (rec->length);
         rec->org += rec->length;
-        rec->length =0;
-        rec->str_found = false;
+        rec->length = 0;
+        rec->str_count = 0;
         *next = (kth_byte+1);
     }
 
@@ -183,19 +190,21 @@ bool dpu_strstr(struct in_buffer_context *input) {
     rec.state = 1;
     rec.org = input->curr;
     rec.length =0;
-    rec.str_found = false;
+    rec.str_count = 0;
     uint8_t tasklet_id = me();
     uint32_t i = 0;  
 
     unsigned int a = READ_4_BYTE(input);       
         
     do {    
-        if ((!rec.str_found) && STRSTR_4_BYTE_OP(a, &next)) {
-            rec.str_found = true;
+        if ((rec.str_count < query_count) && STRSTR_4_BYTE_OP(a, &next, (uint8_t)rec.str_count)) {
+            rec.str_count++;
 
             // update offset here
-            RECORDS_OFFSETS[tasklet_id][i++] = rec.record_start - input->mram_org;
-            dbg_printf("records found %u\n", rec.record_start - input->mram_org);
+            if(rec.str_count == query_count) {
+                RECORDS_OFFSETS[tasklet_id][i++] = rec.record_start - input->mram_org;
+                dbg_printf("records found %u\n", rec.record_start - input->mram_org);
+            }
         }
         else {
             CHECK_RECORD_END(a, input, &rec, &next);

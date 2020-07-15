@@ -151,7 +151,18 @@ long process_return_buffer(char* record_start, callback_data* cdata, uint64_t se
 }
 
 
-void queries_to_keys(sparser_query_t *query, unsigned int * keys) {
+void queries_to_keys(sparser_query_t *query, ascii_rawfilters_t *predicates, unsigned int * keys) {
+	if(query->count == 1) {
+		// add one from the predicates
+		int k=0;
+		for(k=0; k<predicates->num_strings; k++) {
+			if(k != query->queries_pred_indx[0]){
+				break;
+			}
+		}
+		sparser_add_query(query, predicates->strings[k], predicates->lens[k]);
+	}
+	
 	for(int i=0; i<query->count; i++) {
 		shift32((unsigned char*)query->queries[i], &(keys[i]));
 		printf("keys %d %x\n", i, keys[i]);
@@ -182,6 +193,9 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	dbg_printf("dpu searched query is %s query count %d\n", query->queries[0], query->count);
 	// get the filtered buffer
 	#endif
+
+	// printf("predicates count %d %c%c%c%c\n", predicates->num_strings, predicates->strings[2][0], predicates->strings[2][1], predicates->strings[2][2], predicates->strings[2][3]);
+
 	gettimeofday(&end, NULL);
 	double start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
@@ -189,11 +203,11 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 
 	// get the return buffer array ready
 	unsigned int keys[query->count];
-	queries_to_keys(query, keys);
+	queries_to_keys(query, predicates, keys);
 
 	uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS] = {0};
 	uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
-	multi_dpu_test(data, keys, query->count,length, record_offsets, input_offset);
+	multi_dpu_test(data, keys, (uint32_t)query->count,length, record_offsets, input_offset);
 
 	//process the return buffer
 	long candidates = 0;

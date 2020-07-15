@@ -135,7 +135,7 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
 *
 *
 ****************************************************************************************************/
-void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long length, uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS]){
+void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long length, uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS]){
     struct dpu_set_t set, dpu, dpu_rank;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
@@ -182,6 +182,8 @@ void multi_dpu_test(char *input, unsigned int * keys, int keys_length, long leng
     {
         // copy data shared among ranks
         DPU_ASSERT(dpu_copy_to(dpu_rank, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
+        DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
+
         uint32_t largest_length = 0;
         DPU_FOREACH(dpu_rank, dpu)
         {
