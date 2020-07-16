@@ -27,7 +27,7 @@ typedef struct callback_info {
 const char *DEMO_QUERY1_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"Trump\" AND text contains \"Putin\"";
+WHERE name contains \"Yoga\" AND name contains \"Fitness\"";
 
 const char *DEMO_QUERY2_STR = "\n\
 SELECT count(*)\n\
@@ -61,7 +61,7 @@ WHERE text contains \"delicious\"";
 
 
 json_passed_t demo_q1_text(const char *value, void *) {
-    return strstr(value, "Trump") && strstr(value, "Putin") ? JSON_PASS : JSON_FAIL;
+    return strstr(value, "Yoga") && strstr(value, "Fitness") ? JSON_PASS : JSON_FAIL;
 }
 
 json_passed_t demo_q2_text(const char *value, void *) {
@@ -90,7 +90,7 @@ json_passed_t demo_q7_text(const char *value, void *) {
 
 json_query_t demo_query1() {
     json_query_t query = json_query_new();
-    json_query_add_string_filter(query, "text", demo_q1_text);
+    json_query_add_string_filter(query, "name", demo_q1_text);
     return query;
 }
 
@@ -131,8 +131,8 @@ json_query_t demo_query7() {
 }
 
 static const char **sparser_demo_query1(int *count) {
-    static const char *_1 = "Trump";
-    static const char *_2 = "Putin";
+    static const char *_1 = "Yoga";
+    static const char *_2 = "Fitness";
     static const char *predicates[] = {_1, _2, NULL};
 
     *count = 2;

@@ -152,6 +152,7 @@ long process_return_buffer(char* record_start, callback_data* cdata, uint64_t se
 
 
 void queries_to_keys(sparser_query_t *query, ascii_rawfilters_t *predicates, unsigned int * keys) {
+#if 0
 	if(query->count == 1) {
 		// add one from the predicates
 		int k=0;
@@ -162,7 +163,7 @@ void queries_to_keys(sparser_query_t *query, ascii_rawfilters_t *predicates, uns
 		}
 		sparser_add_query(query, predicates->strings[k], predicates->lens[k]);
 	}
-	
+#endif
 	for(int i=0; i<query->count; i++) {
 		shift32((unsigned char*)query->queries[i], &(keys[i]));
 		printf("keys %d %x\n", i, keys[i]);

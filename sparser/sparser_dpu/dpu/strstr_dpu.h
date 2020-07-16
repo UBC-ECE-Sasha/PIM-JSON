@@ -30,6 +30,7 @@ typedef struct record_descrip
     uint8_t str_count;
     record_state state;
     uint32_t org;
+	uint8_t str_mask;
 } record_descrip;
 
 

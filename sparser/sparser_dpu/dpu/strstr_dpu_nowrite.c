@@ -18,6 +18,8 @@
 /* dpu macros */
 #define MIN_RECORDS_LENGTH 8
 #define MAX_KEY_ARY_LENGTH 8
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+#define MASK_BIT(var,pos) ((var) |= (1<<(pos)))
 
 
 /* global variables */
@@ -105,29 +107,35 @@ void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
 }
 
 
-bool STRSTR_4_BYTE_OP(unsigned int a, int* next, uint8_t keys_succeed){
+bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
     unsigned int res = 0;
     unsigned int b = 0;
 
     for (uint32_t i=0; i< query_count; i++){
+        // check if i bit masked? 
+        if(CHECK_BIT(rec->str_mask, i))
+            continue; 
+        else{
+            // normal process
+            // if true mask the bit correspand ot the key_cache
+            shift_same(key_cache[i]>>24, &b);
+            __builtin_cmpb4_rrr(res, a, b);
+            *next = find_next_set_bit(res, 1);
 
-    }
-
-        shift_same(key_cache[key_index]>>24, &b);
-        __builtin_cmpb4_rrr(res, a, b);
-        *next = find_next_set_bit(res, 1);
-
-        if(res & (0x01<<24)) {
-            // compare the following 4 bytes
-            res = 0x0;
-            __builtin_cmpb4_rrr(res, a, key_cache[key_index]);
-            if(res == 0x01010101) {
-                *next = 4;
-                return true;
+            if(res & (0x01<<24)) {
+                // compare the following 4 bytes
+                res = 0x0;
+                __builtin_cmpb4_rrr(res, a, key_cache[i]);
+                if(res == 0x01010101) {
+                    *next = 4;
+                    MASK_BIT(rec->str_mask, i);
+                    return true;
+                }
             }
         }
+
     }
- 
+
 
     return false;
 }
@@ -177,6 +185,7 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
         rec->org += rec->length;
         rec->length = 0;
         rec->str_count = 0;
+        rec->str_mask = 0;
         *next = (kth_byte+1);
     }
 
@@ -191,13 +200,14 @@ bool dpu_strstr(struct in_buffer_context *input) {
     rec.org = input->curr;
     rec.length =0;
     rec.str_count = 0;
+    rec.str_mask = 0;
     uint8_t tasklet_id = me();
     uint32_t i = 0;  
 
     unsigned int a = READ_4_BYTE(input);       
         
     do {    
-        if ((rec.str_count < query_count) && STRSTR_4_BYTE_OP(a, &next, (uint8_t)rec.str_count)) {
+        if ((rec.str_count < query_count) && STRSTR_4_BYTE_OP(a, &next, &rec)) {
             rec.str_count++;
 
             // update offset here
