@@ -59,7 +59,7 @@ SELECT count(*)\n\
 FROM tweets\n\
 WHERE text contains \"delicious\"";
 
-const char *DEMO_QUERY7_STR = "\n\
+const char *DEMO_QUERY8_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
 WHERE text contains \"delicious\" AND name contains \"delivery\"";
@@ -207,8 +207,8 @@ static const char **sparser_demo_query8(int *count) {
 
 
 // ************** All the queries we want to test **************
-const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, NULL};
-const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, NULL};
-const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, NULL };
+const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, demo_query8, NULL};
+const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, sparser_demo_query8,NULL};
+const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, DEMO_QUERY8_STR, NULL };
 
 #endif
