@@ -64,6 +64,21 @@ SELECT count(*)\n\
 FROM tweets\n\
 WHERE text contains \"delicious\" AND name contains \"delivery\"";
 
+const char *DEMO_QUERY9_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"burgers\" AND name contains \"fries\"";
+
+const char *DEMO_QUERY10_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"pizza\" AND name contains \"delivery\"";
+
+const char *DEMO_QUERY11_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"delicious\" AND name contains \"steak\"";
+
 
 json_passed_t demo_q1_text(const char *value, void *) {
     return strstr(value, "Yoga") && strstr(value, "Fitness") ? JSON_PASS : JSON_FAIL;
@@ -96,6 +111,19 @@ json_passed_t demo_q7_text(const char *value, void *) {
 json_passed_t demo_q8_text(const char *value, void *) {
     return strstr(value, "delicious") && strstr(value, "delivery") ? JSON_PASS : JSON_FAIL;
 }
+
+json_passed_t demo_q9_text(const char *value, void *) {
+    return strstr(value, "burgers") && strstr(value, "fries") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q10_text(const char *value, void *) {
+    return strstr(value, "pizza") && strstr(value, "delivery") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q11_text(const char *value, void *) {
+    return strstr(value, "delicious") && strstr(value, "steak") ? JSON_PASS : JSON_FAIL;
+}
+
 
 json_query_t demo_query1() {
     json_query_t query = json_query_new();
@@ -144,6 +172,25 @@ json_query_t demo_query8() {
     json_query_add_string_filter(query, "text", demo_q8_text);
     return query;
 }
+
+json_query_t demo_query9() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q9_text);
+    return query;
+}
+
+json_query_t demo_query10() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q10_text);
+    return query;
+}
+
+json_query_t demo_query11() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q11_text);
+    return query;
+}
+
 
 
 static const char **sparser_demo_query1(int *count) {
@@ -205,10 +252,33 @@ static const char **sparser_demo_query8(int *count) {
     return predicates;
 }
 
+static const char **sparser_demo_query9(int *count) {
+    static const char *_1 = "burgers";
+    static const char *_2 = "fries";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
+    return predicates;
+}
+
+static const char **sparser_demo_query10(int *count) {
+    static const char *_1 = "pizza";
+    static const char *_2 = "delivery";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
+    return predicates;
+}
+
+static const char **sparser_demo_query11(int *count) {
+    static const char *_1 = "delicious";
+    static const char *_2 = "steak";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
+    return predicates;
+}
 
 // ************** All the queries we want to test **************
-const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, demo_query8, NULL};
-const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, sparser_demo_query8,NULL};
-const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, DEMO_QUERY8_STR, NULL };
+const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, demo_query8, demo_query9, demo_query10, demo_query11, NULL};
+const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, sparser_demo_query8, sparser_demo_query9, sparser_demo_query10, sparser_demo_query11, NULL};
+const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, DEMO_QUERY8_STR, DEMO_QUERY9_STR, DEMO_QUERY10_STR, DEMO_QUERY11_STR, NULL };
 
 #endif
