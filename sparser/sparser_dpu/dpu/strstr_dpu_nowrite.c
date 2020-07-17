@@ -187,7 +187,6 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
         rec->record_start += (rec->length);
         rec->org += rec->length;
         rec->length = 0;
-        rec->str_count = 0;
         rec->str_mask = 0;
         *next = (kth_byte+1);
     }
@@ -202,18 +201,19 @@ bool dpu_strstr(struct in_buffer_context *input) {
     rec.state = 1;
     rec.org = input->curr;
     rec.length =0;
-    rec.str_count = 0;
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
 
     unsigned int a = READ_4_BYTE(input);       
-        
-    do {    
-        if ((rec.str_count < query_count) && STRSTR_4_BYTE_OP(a, &next, &rec)) {
-            rec.str_count++;
+    uint32_t query_passed_count = 0;
+
+    do {   
+        __builtin_cao_rr(query_passed_count, rec.str_mask); 
+        if ((query_passed_count < query_count) && STRSTR_4_BYTE_OP(a, &next, &rec)) {
+             query_passed_count++;
 
             // update offset here
-            if(rec.str_count == query_count) {
+            if(query_passed_count >= query_count) {
                 mutex_lock(write_mutex);
                 RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
                 mutex_unlock(write_mutex);
