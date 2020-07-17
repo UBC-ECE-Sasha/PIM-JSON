@@ -31,9 +31,9 @@ __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(36)];
 __mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
-__host uint32_t offset_count = 0;
+__host volatile uint32_t offset_count = 0;
 
-MUTEX_INIT(write_mutex);
+// MUTEX_INIT(write_mutex);
 
 /**
  * 
@@ -214,9 +214,11 @@ bool dpu_strstr(struct in_buffer_context *input) {
 
             // update offset here
             if(rec.str_count == query_count) {
-                mutex_lock(write_mutex);
-                RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
-                mutex_unlock(write_mutex);
+                // mutex_lock(write_mutex);
+                uint32_t temp = offset_count;
+                offset_count + =1;
+                RECORDS_OFFSETS[otemp] = rec.record_start - input->mram_org + input_offset[tasklet_id];
+                // mutex_unlock(write_mutex);
                 dbg_printf("records found %u count %u\n", rec.record_start - input->mram_org, offset_count);
             }
         }
