@@ -112,6 +112,7 @@ void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
 bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
     unsigned int res = 0;
     unsigned int b = 0;
+    int min_next = 5;
 
     for (uint32_t i=0; i< query_count; i++){
         // check if i bit masked? 
@@ -124,6 +125,9 @@ bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
             shift_same(key_cache[i]>>24, &b);
             __builtin_cmpb4_rrr(res, a, b);
             *next = find_next_set_bit(res, 1);
+            if(*next < min_next) {
+                min_next = *next;
+            }
 
             if(res & (0x01<<24)) {
                 // compare the following 4 bytes
@@ -136,10 +140,9 @@ bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
                 }
             }
         }
-
     }
 
-
+    *next = min_next;
     return false;
 }
 
