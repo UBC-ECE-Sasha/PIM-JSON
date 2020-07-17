@@ -28,10 +28,12 @@ __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
 __host uint32_t query_count = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
-// __host __mram_ptr uint8_t *DPU_BUFFER;
 uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(36)];
-__mram_noinit uint32_t RECORDS_OFFSETS[NR_TASKLETS][MAX_NUM_RETURNS] = {0};
+__mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
+__host uint32_t offset_count = 0;
+
+MUTEX_INIT(write_mutex);
 
 /**
  * 
@@ -113,8 +115,9 @@ bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
 
     for (uint32_t i=0; i< query_count; i++){
         // check if i bit masked? 
-        if(CHECK_BIT(rec->str_mask, i))
-            continue; 
+        if(CHECK_BIT(rec->str_mask, i)){
+            continue;
+        }
         else{
             // normal process
             // if true mask the bit correspand ot the key_cache
@@ -202,7 +205,6 @@ bool dpu_strstr(struct in_buffer_context *input) {
     rec.str_count = 0;
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
-    uint32_t i = 0;  
 
     unsigned int a = READ_4_BYTE(input);       
         
@@ -212,8 +214,10 @@ bool dpu_strstr(struct in_buffer_context *input) {
 
             // update offset here
             if(rec.str_count == query_count) {
-                RECORDS_OFFSETS[tasklet_id][i++] = rec.record_start - input->mram_org;
-                dbg_printf("records found %u\n", rec.record_start - input->mram_org);
+                mutex_lock(write_mutex);
+                RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
+                mutex_unlock(write_mutex);
+                dbg_printf("records found %u count %u\n", rec.record_start - input->mram_org, offset_count);
             }
         }
         else {
@@ -236,7 +240,6 @@ bool dpu_strstr(struct in_buffer_context *input) {
         }
     } while(input->curr < input->length|| input->curr+4 < input->length);
 
-    RECORDS_OFFSETS[tasklet_id][i] = 0xDEADBAFF;
     return false;
 }
 

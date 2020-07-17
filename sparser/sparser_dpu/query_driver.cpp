@@ -134,13 +134,16 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 
 long process_return_buffer(char* record_start, callback_data* cdata, uint64_t search_len) {
     int pass = 0;
+	// search_len = 4096*2;
+
 	char * record_end = (char *)memchr(record_start, '\n', search_len);
     size_t record_length = record_end - record_start+1;
-	
+	dbg_printf("record length is %d\n", record_length);
 	if (_rapidjson_parse_callback_dpu(record_start, cdata, record_length)) {
 		pass = 1;
 	}
 #if HOST_DEBUG
+
     for(uint32_t i =0; i< record_length; i++){
         char c = record_start[i];
         putchar(c);
@@ -207,27 +210,22 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	unsigned int keys[query->count];
 	queries_to_keys(query, predicates, keys);
 
-	uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS] = {0};
+	uint32_t record_offsets[NR_DPUS][MAX_NUM_RETURNS] = {0};
 	uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
-	multi_dpu_test(data, keys, (uint32_t)query->count,length, record_offsets, input_offset);
+	uint32_t output_count[NR_DPUS] = {0};
+	multi_dpu_test(data, keys, (uint32_t)query->count,length, record_offsets, input_offset, output_count);
 
 	//process the return buffer
 	long candidates = 0;
-	gettimeofday(&start, NULL);
-	for (int i =0; i< NR_DPUS; i++) {
-		for (int j=0; j< NR_TASKLETS; j++) {
-			char* base = j==0 ? data + input_offset[i][j] : data + input_offset[i][j] + input_offset[i][0];
-			uint32_t *temp = record_offsets[i][j];
-			uint32_t len = (j!= (NR_TASKLETS-1) ? (record_offsets[i][j+1] - record_offsets[i][j]) : len); // could be buggy
-			for(int k =0; k < MAX_NUM_RETURNS; k++) {
-				if(temp[k] != 0xDEADBAFF) {
-					candidates++;
-					parse_suceed += process_return_buffer(base+temp[k], &cdata, len - temp[k]);
-				}
-				else {
-					break;
-				}
-			}
+	gettimeofday(&start, NULL);	
+	for (uint32_t i =0; i< NR_DPUS; i++) {
+		uint64_t end = (i != (NR_DPUS-1)) ? (input_offset[i+1][0]) : (uint64_t)length;
+		char* base = data + input_offset[i][0];
+		dbg_printf("dpu %d output count is %d\n", i, output_count[i]);
+		for(uint32_t j=0; j<output_count[i]; j++) {
+			candidates++;
+			dbg_printf("dpu %d record_offsets %d\n", i, record_offsets[i][j]);
+			parse_suceed += process_return_buffer(base+record_offsets[i][j], &cdata, end - record_offsets[i][j]);
 		}
 	}
 	gettimeofday(&end, NULL);
@@ -382,3 +380,4 @@ int main(int argc, char **argv) {
 		return 0;
 	}
 }
+

@@ -135,7 +135,7 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
 *
 *
 ****************************************************************************************************/
-void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long length, uint32_t record_offsets[NR_DPUS][NR_TASKLETS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS]){
+void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long length, uint32_t record_offsets[NR_DPUS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t output_count[NR_DPUS]){
     struct dpu_set_t set, dpu, dpu_rank;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
@@ -215,7 +215,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("dpu launch took %g s\n", end_time - start_time);
-#if HOST_DEBUG
+#if 0
     {
         unsigned int each_dpu = 0;
         printf("Display DPU Logs\n");
@@ -227,13 +227,28 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     } 
 #endif
     gettimeofday(&start, NULL);
-    int i =0;
-#if 1
-    DPU_FOREACH (set, dpu) {
-        DPU_ASSERT(dpu_copy_from(dpu, "RECORDS_OFFSETS", 0, &(record_offsets[i]), sizeof(uint32_t) * MAX_NUM_RETURNS * NR_TASKLETS));
-        i++;
+
+    rank_id = 0;
+    dpu_id = 0;
+    uint32_t largest_count = 0;
+    DPU_RANK_FOREACH(set, dpu_rank, rank_id) {
+        // DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+            dpu_copy_from(dpu, "offset_count", 0, &(output_count[dpu_id]), sizeof(uint32_t));
+            if ( output_count[dpu_id] > largest_count) {
+                largest_count = output_count[dpu_id];
+                dbg_printf("dpu-host output_count %d\n", largest_count);
+            }
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)(record_offsets[dpu_id])));
+            dpu_id++;
+        }
+
+        // DPU_ASSERT(dpu_copy_from(dpu_rank, "RECORDS_OFFSETS", 0, &(record_offsets[rank_id*dpus_per_rank]),sizeof(uint32_t) * MAX_NUM_RETURNS*dpus_per_rank));
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_FROM_DPU, "RECORDS_OFFSETS", 0, sizeof(uint32_t)* ALIGN(largest_count, 8), DPU_XFER_DEFAULT));
+
     }
-#endif
+
 
     gettimeofday(&end, NULL);
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
