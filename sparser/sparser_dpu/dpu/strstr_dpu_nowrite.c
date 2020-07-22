@@ -18,29 +18,31 @@
 /* dpu macros */
 #define MIN_RECORDS_LENGTH 8
 #define MAX_KEY_ARY_LENGTH 8
+#define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
+#define MASK_BIT(var,pos) ((var) |= (1<<(pos)))
 
 
 /* global variables */
 __host uint32_t input_length = 0;
 __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
+__host uint32_t query_count = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
-// __host __mram_ptr uint8_t *DPU_BUFFER;
-uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(36)];
-__mram_noinit uint32_t RECORDS_OFFSETS[NR_TASKLETS][MAX_NUM_RETURNS] = {0};
+uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(56)];
+__mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
+__host volatile uint32_t offset_count = 0;
+
+MUTEX_INIT(write_mutex);
 
 /**
  * 
  * Utility functions 
  *  
  **/
-static int find_next_set_bit(unsigned int res, int start) {
-    if(start == 3) {
-        return 4;
-    }
-    
-    for (int i=start; i< 4; i++){
+static int find_next_set_bit(unsigned int res) {
+
+    for (int i=1; i< 4; i++){
         if(res & (0x01<<((3-i)<<3))){
             return i;
         }
@@ -104,24 +106,40 @@ void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
 }
 
 
-bool STRSTR_4_BYTE_OP(unsigned int a, int* next){
+bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
     unsigned int res = 0;
     unsigned int b = 0;
+    int min_next = 5;
 
-    shift_same(key_cache[0]>>24, &b);
-    __builtin_cmpb4_rrr(res, a, b);
-    *next = find_next_set_bit(res, 1);
-
-    if(res & (0x01<<24)) {
-        // compare the following 4 bytes
-        res = 0x0;
-         __builtin_cmpb4_rrr(res, a, key_cache[0]);
-         if(res == 0x01010101) {
-             *next = 4;
-             return true;
-         }
+    for (uint32_t i=0; i< query_count; i++){
+        // check if i bit masked? 
+        if(CHECK_BIT(rec->str_mask, i)){
+            continue;
+        }
+        else{
+            // normal process
+            // if true mask the bit correspand ot the key_cache
+            shift_same(key_cache[i]>>24, &b);
+            __builtin_cmpb4_rrr(res, a, b);
+            *next = find_next_set_bit(res);
+            if(*next < min_next) {
+                min_next = *next;
+            }
+                      
+            if(res & 0x01000000) {
+                // compare the following 4 bytes
+                res = 0x0;
+                __builtin_cmpb4_rrr(res, a, key_cache[i]);
+                if(res == 0x01010101) {
+                    *next = 4;
+                    MASK_BIT(rec->str_mask, i);
+                    return true;
+                }
+            }
+        }
     }
 
+    *next = min_next;
     return false;
 }
 
@@ -168,34 +186,40 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
         // reset
         rec->record_start += (rec->length);
         rec->org += rec->length;
-        rec->length =0;
-        rec->str_found = false;
+        rec->length = 0;
+        rec->str_mask = 0;
         *next = (kth_byte+1);
     }
 
 }
 
 
-bool dpu_strstr(struct in_buffer_context *input) {
+void dpu_strstr(struct in_buffer_context *input) {
     int next = 0;
     struct record_descrip rec;
     rec.record_start = input->mram_org;
     rec.state = 1;
     rec.org = input->curr;
     rec.length =0;
-    rec.str_found = false;
+    rec.str_mask = 0;
     uint8_t tasklet_id = me();
-    uint32_t i = 0;  
 
     unsigned int a = READ_4_BYTE(input);       
-        
-    do {    
-        if ((!rec.str_found) && STRSTR_4_BYTE_OP(a, &next)) {
-            rec.str_found = true;
+    uint32_t query_passed_count = 0;
 
+    do { 
+        // check how many queries have passed
+        __builtin_cao_rr(query_passed_count, rec.str_mask);
+        // check if queries exist in the current 4 bytes
+        if ((query_passed_count < query_count) && STRSTR_4_BYTE_OP(a, &next, &rec)) {
+             query_passed_count++;
             // update offset here
-            RECORDS_OFFSETS[tasklet_id][i++] = rec.record_start - input->mram_org;
-            dbg_printf("records found %u\n", rec.record_start - input->mram_org);
+            if(query_passed_count >= query_count) {
+                mutex_lock(write_mutex);
+                RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
+                mutex_unlock(write_mutex);
+                dbg_printf("records found %u count %u\n", rec.record_start - input->mram_org, offset_count);
+            }
         }
         else {
             CHECK_RECORD_END(a, input, &rec, &next);
@@ -205,7 +229,6 @@ bool dpu_strstr(struct in_buffer_context *input) {
             case 1:
             case 2:
             case 3:
-
                 READ_X_BYTE(&a, input, next);
                 input->curr += next;
                 break;
@@ -216,9 +239,6 @@ bool dpu_strstr(struct in_buffer_context *input) {
                 break;
         }
     } while(input->curr < input->length|| input->curr+4 < input->length);
-
-    RECORDS_OFFSETS[tasklet_id][i] = 0xDEADBAFF;
-    return false;
 }
 
 
@@ -252,12 +272,9 @@ int main()
 #if 1    
     perfcounter_config(COUNT_CYCLES, true);
     if (input.length != 0) {
-		// Do the uncompress
-		if (dpu_strstr(&input))
-		{
-			dbg_printf("Tasklet %d: found searched pattern %lu\n", idx, perfcounter_get());
-            return -1;
-		}
+		dpu_strstr(&input);
+        dbg_printf("Tasklet %d: found searched pattern %lu\n", idx, perfcounter_get());
 	}
 #endif
+    return 0;
 }

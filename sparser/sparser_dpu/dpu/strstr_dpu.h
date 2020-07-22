@@ -27,9 +27,9 @@ typedef struct record_descrip
 {
     uint32_t length;
     __mram_ptr uint8_t * record_start;
-    bool str_found;
     record_state state;
     uint32_t org;
+	uint32_t str_mask;
 } record_descrip;
 
 

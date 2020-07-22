@@ -16,6 +16,6 @@
 #define MAX_KEY_SIZE 8
 #define RETURN_RECORDS_SIZE (8<<20)
 #define MAX_RECORD_SIZE 2048
-#define MAX_NUM_RETURNS 1024
+#define MAX_NUM_RETURNS (1 << 19)
 
 #endif /* __DPU_COMMON_H__ */
