@@ -40,12 +40,9 @@ MUTEX_INIT(write_mutex);
  * Utility functions 
  *  
  **/
-static int find_next_set_bit(unsigned int res, int start) {
-    if(start == 3) {
-        return 4;
-    }
-    
-    for (int i=start; i< 4; i++){
+static int find_next_set_bit(unsigned int res) {
+
+    for (int i=1; i< 4; i++){
         if(res & (0x01<<((3-i)<<3))){
             return i;
         }
@@ -124,12 +121,12 @@ bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
             // if true mask the bit correspand ot the key_cache
             shift_same(key_cache[i]>>24, &b);
             __builtin_cmpb4_rrr(res, a, b);
-            *next = find_next_set_bit(res, 1);
+            *next = find_next_set_bit(res);
             if(*next < min_next) {
                 min_next = *next;
             }
-
-            if(res & (0x01<<24)) {
+                      
+            if(res & 0x01000000) {
                 // compare the following 4 bytes
                 res = 0x0;
                 __builtin_cmpb4_rrr(res, a, key_cache[i]);
@@ -197,7 +194,7 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
 }
 
 
-bool dpu_strstr(struct in_buffer_context *input) {
+void dpu_strstr(struct in_buffer_context *input) {
     int next = 0;
     struct record_descrip rec;
     rec.record_start = input->mram_org;
@@ -210,11 +207,12 @@ bool dpu_strstr(struct in_buffer_context *input) {
     unsigned int a = READ_4_BYTE(input);       
     uint32_t query_passed_count = 0;
 
-    do {   
-        __builtin_cao_rr(query_passed_count, rec.str_mask); 
+    do { 
+        // check how many queries have passed
+        __builtin_cao_rr(query_passed_count, rec.str_mask);
+        // check if queries exist in the current 4 bytes
         if ((query_passed_count < query_count) && STRSTR_4_BYTE_OP(a, &next, &rec)) {
              query_passed_count++;
-
             // update offset here
             if(query_passed_count >= query_count) {
                 mutex_lock(write_mutex);
@@ -231,7 +229,6 @@ bool dpu_strstr(struct in_buffer_context *input) {
             case 1:
             case 2:
             case 3:
-
                 READ_X_BYTE(&a, input, next);
                 input->curr += next;
                 break;
@@ -242,8 +239,6 @@ bool dpu_strstr(struct in_buffer_context *input) {
                 break;
         }
     } while(input->curr < input->length|| input->curr+4 < input->length);
-
-    return false;
 }
 
 
@@ -277,12 +272,9 @@ int main()
 #if 1    
     perfcounter_config(COUNT_CYCLES, true);
     if (input.length != 0) {
-		// Do the uncompress
-		if (dpu_strstr(&input))
-		{
-			dbg_printf("Tasklet %d: found searched pattern %lu\n", idx, perfcounter_get());
-            return -1;
-		}
+		dpu_strstr(&input);
+        dbg_printf("Tasklet %d: found searched pattern %lu\n", idx, perfcounter_get());
 	}
 #endif
+    return 0;
 }
