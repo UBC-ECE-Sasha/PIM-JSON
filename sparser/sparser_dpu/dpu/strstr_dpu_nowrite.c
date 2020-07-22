@@ -29,7 +29,9 @@ __host uint32_t adjust_offset = 0;
 __host uint32_t query_count = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(56)];
-__mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
+// __mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
+// __mram_noinit uint32_t RECORDS_LENS[MAX_NUM_RETURNS] = {0};
+__mram_noinit struct json_candidate candidates[MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
 __host volatile uint32_t offset_count = 0;
 
@@ -175,13 +177,24 @@ bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
 *
 *
 ****************************************************************************************************/
-void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct record_descrip* rec, int * next) {
+void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct record_descrip* rec, int * next, uint32_t query_passed_count, uint8_t tasklet_id) {
     int kth_byte = 0;
     
     if(CHECK_4_BYTE(a, &kth_byte)) {
         // finish reading a record                
         rec->length = input->curr - rec->org + kth_byte+1;//-(4-kth_byte-1);
         dbg_printf("record length %d curr %d org %d kth_byte%d \n", rec->length, input->curr, rec->org, kth_byte);
+
+        if(query_passed_count >= query_count) {
+            mutex_lock(write_mutex);
+            candidates[offset_count].length = rec->length;
+            candidates[offset_count].offset = rec->record_start - input->mram_org + input_offset[tasklet_id];
+            offset_count++;
+            mutex_unlock(write_mutex);  
+            // RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
+            // RECORDS_LENS[offset_count] = rec->length;   
+            dbg_printf("records found %u count %u\n", rec.record_start - input->mram_org, offset_count);
+        }
 
         // reset
         rec->record_start += (rec->length);
@@ -190,7 +203,6 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
         rec->str_mask = 0;
         *next = (kth_byte+1);
     }
-
 }
 
 
@@ -214,15 +226,10 @@ void dpu_strstr(struct in_buffer_context *input) {
         if ((query_passed_count < query_count) && STRSTR_4_BYTE_OP(a, &next, &rec)) {
              query_passed_count++;
             // update offset here
-            if(query_passed_count >= query_count) {
-                mutex_lock(write_mutex);
-                RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
-                mutex_unlock(write_mutex);
-                dbg_printf("records found %u count %u\n", rec.record_start - input->mram_org, offset_count);
-            }
+
         }
         else {
-            CHECK_RECORD_END(a, input, &rec, &next);
+            CHECK_RECORD_END(a, input, &rec, &next, query_passed_count, tasklet_id);
         }
 
         switch (next) {

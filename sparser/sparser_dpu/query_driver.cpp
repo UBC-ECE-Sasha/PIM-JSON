@@ -135,10 +135,10 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 long process_return_buffer(char* record_start, callback_data* cdata, uint64_t search_len) {
     int pass = 0;
 
-	char * record_end = (char *)memchr(record_start, '\n', search_len);
-    size_t record_length = record_end - record_start+1;
-	dbg_printf("record length is %d\n", record_length);
-	if (_rapidjson_parse_callback_dpu(record_start, cdata, record_length)) {
+	// char * record_end = (char *)memchr(record_start, '\n', search_len);
+    // size_t record_length = record_end - record_start+1;
+	// dbg_printf("record length is %d\n", record_length);
+	if (_rapidjson_parse_callback_dpu(record_start, cdata, search_len+1)) {
 		pass = 1;
 	}
 #if HOST_DEBUG
@@ -205,12 +205,13 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	queries_to_keys(query, predicates, keys);
 
 	// get the return buffer array ready
-	uint32_t record_offsets[NR_DPUS][MAX_NUM_RETURNS] = {0};
+	json_candidate record_offsets[NR_DPUS][MAX_NUM_RETURNS] = {0};
 	uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
 	uint32_t output_count[NR_DPUS] = {0};
 	multi_dpu_test(data, keys, (uint32_t)query->count,length, record_offsets, input_offset, output_count);
 
 	//process the return buffer
+	#if 1
 	long candidates = 0;
 	gettimeofday(&start, NULL);	
 	for (uint32_t i =0; i< NR_DPUS; i++) {
@@ -220,11 +221,12 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 		for(uint32_t j=0; j<output_count[i]; j++) {
 			candidates++;
 			dbg_printf("dpu %d record_offsets %d\n", i, record_offsets[i][j]);
-			parse_suceed += process_return_buffer(base+record_offsets[i][j], &cdata, end - record_offsets[i][j]);
+			parse_suceed += process_return_buffer(base+record_offsets[i][j].offset, &cdata, record_offsets[i][j].length);
 		}
 	}
 	gettimeofday(&end, NULL);
 	printf("return buffer total valid candidates %ld\n", candidates);
+	#endif
 
 	double elapsed = time_stop(s);
   	printf("RapidJSON with Sparser plus DPU:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", parse_suceed, elapsed);

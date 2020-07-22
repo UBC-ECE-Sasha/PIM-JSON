@@ -135,7 +135,7 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
 *
 *
 ****************************************************************************************************/
-void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long length, uint32_t record_offsets[NR_DPUS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t output_count[NR_DPUS]){
+void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long length, struct json_candidate record_offsets[NR_DPUS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t output_count[NR_DPUS]){
     struct dpu_set_t set, dpu, dpu_rank;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
@@ -245,7 +245,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
         }
 
         // DPU_ASSERT(dpu_copy_from(dpu_rank, "RECORDS_OFFSETS", 0, &(record_offsets[rank_id*dpus_per_rank]),sizeof(uint32_t) * MAX_NUM_RETURNS*dpus_per_rank));
-        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_FROM_DPU, "RECORDS_OFFSETS", 0, sizeof(uint32_t)* ALIGN(largest_count, 8), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_FROM_DPU, "candidates", 0, sizeof(struct json_candidate)* ALIGN(largest_count, 8), DPU_XFER_DEFAULT));
 
     }
 
