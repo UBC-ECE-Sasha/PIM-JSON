@@ -20,7 +20,7 @@ all: dpu dpu_host sparser
 	$(CC)  -o bench dpu_host.o query_driver.o  ${DPU_FLAGS} ${HOST_FLAGS} -lstdc++
 
 sparser:
-	cc -g $(INCLUDES) -O $(CFLAGS) -DNR_DPUS=${NR_DPUS} -DNR_TASKLETS=${NR_TASKLETS} -c -o query_driver.o  query_driver.cpp
+	cc -g $(INCLUDES) -O3 $(CFLAGS) -DNR_DPUS=${NR_DPUS} -DNR_TASKLETS=${NR_TASKLETS} -c -o query_driver.o  query_driver.cpp
 
 dpu:
 	dpu-upmem-dpurte-clang -Wall -Wextra -Werror -g -I ../dpu_common.h -I dpu/strstr_dpu.h -O -DNR_TASKLETS=${NR_TASKLETS} -o ${DPU_TARGET} dpu/strstr_dpu_nowrite.c

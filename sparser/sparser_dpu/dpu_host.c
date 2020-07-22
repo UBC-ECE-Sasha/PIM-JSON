@@ -149,26 +149,26 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
         return;
     }
     // allocate DPUs
+    gettimeofday(&start, NULL);
     DPU_ASSERT(dpu_alloc(NR_DPUS, NULL, &set));
 
     uint32_t dpus_per_rank = 0;
     DPU_ASSERT(dpu_get_nr_dpus(set, &nr_of_dpus));
     DPU_ASSERT(dpu_get_nr_ranks(set, &nr_of_ranks));
     dpus_per_rank = nr_of_dpus/nr_of_ranks;
-    printf("Got %u dpus across %u ranks (%u dpus per rank)\n", nr_of_dpus, nr_of_ranks, dpus_per_rank);
 
     #if HOST_DEBUG
         dbg_printf("Allocated %d DPU(s) %c number of dpu ranks are %d\n", nr_of_dpus, input[0], nr_of_ranks);
     #endif
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 
-    gettimeofday(&start, NULL);
     unsigned int dpu_id = 0;
-    // uint32_t dpu_mram_buffer_start = 1024 * 1024;
     uint32_t input_length[NR_DPUS] = {0};
-
+    // caculate offset for each tasklet
     calculate_offset(input, length, input_offset, input_length);
     gettimeofday(&end, NULL);
+    printf("Got %u dpus across %u ranks (%u dpus per rank)\n", nr_of_dpus, nr_of_ranks, dpus_per_rank);
+
     double start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("host preprocess took %g s \n", end_time - start_time);

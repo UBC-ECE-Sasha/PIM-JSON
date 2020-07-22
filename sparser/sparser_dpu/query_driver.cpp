@@ -134,7 +134,6 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 
 long process_return_buffer(char* record_start, callback_data* cdata, uint64_t search_len) {
     int pass = 0;
-	// search_len = 4096*2;
 
 	char * record_end = (char *)memchr(record_start, '\n', search_len);
     size_t record_length = record_end - record_start+1;
@@ -182,8 +181,6 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
   struct callback_data cdata;
 	cdata.count = 0;
   	cdata.query = jquery;	
-	// char* ret_buf;
-
 	long parse_suceed =0;
 
 	// XXX Generate a schedule
@@ -199,17 +196,15 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	// get the filtered buffer
 	#endif
 
-	// printf("predicates count %d %c%c%c%c\n", predicates->num_strings, predicates->strings[2][0], predicates->strings[2][1], predicates->strings[2][2], predicates->strings[2][3]);
-
 	gettimeofday(&end, NULL);
 	double start_time = start.tv_sec + start.tv_usec / 1000000.0;
 	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
     printf("host process (calibrate) %g s\n", end_time - start_time);	
-
-	// get the return buffer array ready
+	// keys
 	unsigned int keys[query->count];
 	queries_to_keys(query, predicates, keys);
 
+	// get the return buffer array ready
 	uint32_t record_offsets[NR_DPUS][MAX_NUM_RETURNS] = {0};
 	uint64_t input_offset[NR_DPUS][NR_TASKLETS] = {0};
 	uint32_t output_count[NR_DPUS] = {0};
