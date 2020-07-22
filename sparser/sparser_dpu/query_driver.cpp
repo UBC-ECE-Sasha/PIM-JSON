@@ -81,6 +81,35 @@ void shift32(uint8_t* start, unsigned int *a){
 }
 
 
+void quicksort(json_candidate candidates[MAX_NUM_RETURNS], int first, int last) {
+	int i,j,pivot;
+	json_candidate temp;
+
+	if(first<last) {
+		pivot=first;
+		i=first;
+		j=last;
+
+		while(i<j) {
+			while(candidates[i].offset <= candidates[pivot].offset && i<last) i++;
+			while(candidates[j].offset > candidates[pivot].offset) j--;
+
+			if(i<j) {
+				temp = candidates[i];
+				candidates[i] = candidates[j];
+				candidates[j] = temp;
+			}
+		}
+		
+		temp = candidates[pivot];
+		candidates[pivot] = candidates[j];
+		candidates[j] = temp;
+		quicksort(candidates, first, j-1);
+		quicksort(candidates, j+1, last);
+	}
+
+}
+
 double bench_rapidjson_engine(char *data, long length, json_query_t query, int queryno) {
   bench_timer_t s = time_start();
   long doc_index = 1;
@@ -215,14 +244,21 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	long candidates = 0;
 	gettimeofday(&start, NULL);	
 	for (uint32_t i =0; i< NR_DPUS; i++) {
-		uint64_t end = (i != (NR_DPUS-1)) ? (input_offset[i+1][0]) : (uint64_t)length;
 		char* base = data + input_offset[i][0];
 		dbg_printf("dpu %d output count is %d\n", i, output_count[i]);
+		for(uint32_t j=0; j<output_count[i]; j++) {
+			printf("%u ", record_offsets[i][j].offset);
+		}
+		printf("\n");
+
+		quicksort(record_offsets[i], 0, output_count[i]-1);
 		for(uint32_t j=0; j<output_count[i]; j++) {
 			candidates++;
 			dbg_printf("dpu %d record_offsets %d\n", i, record_offsets[i][j]);
 			parse_suceed += process_return_buffer(base+record_offsets[i][j].offset, &cdata, record_offsets[i][j].length);
+			printf("%u ", record_offsets[i][j].offset);
 		}
+		printf("\n");
 	}
 	gettimeofday(&end, NULL);
 	printf("return buffer total valid candidates %ld\n", candidates);
