@@ -170,8 +170,8 @@ long process_return_buffer(char* record_start, callback_data* cdata, uint64_t se
 	if (_rapidjson_parse_callback_dpu(record_start, cdata, search_len+1)) {
 		pass = 1;
 	}
+	dbg_printf("length of the records is %d %c %c\n", search_len, record_start[0], record_start[search_len-2]);
 #if HOST_DEBUG
-
     for(uint32_t i =0; i< record_length; i++){
         char c = record_start[i];
         putchar(c);
@@ -246,19 +246,14 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	for (uint32_t i =0; i< NR_DPUS; i++) {
 		char* base = data + input_offset[i][0];
 		dbg_printf("dpu %d output count is %d\n", i, output_count[i]);
-		for(uint32_t j=0; j<output_count[i]; j++) {
-			printf("%u ", record_offsets[i][j].offset);
-		}
-		printf("\n");
-
-		quicksort(record_offsets[i], 0, output_count[i]-1);
+		// quicksort(record_offsets[i], 0, output_count[i]-1);
 		for(uint32_t j=0; j<output_count[i]; j++) {
 			candidates++;
 			dbg_printf("dpu %d record_offsets %d\n", i, record_offsets[i][j]);
 			parse_suceed += process_return_buffer(base+record_offsets[i][j].offset, &cdata, record_offsets[i][j].length);
-			printf("%u ", record_offsets[i][j].offset);
+			dbg_printf("%u ", record_offsets[i][j].offset);
 		}
-		printf("\n");
+		dbg_printf("\n");
 	}
 	gettimeofday(&end, NULL);
 	printf("return buffer total valid candidates %ld\n", candidates);
@@ -315,26 +310,6 @@ void process_query(char *raw, long length, int query_index) {
 
 	bench_sparser_engine(raw, length, jquery, &d, query_index);
 	bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
-#if MEM
-	 uint8_t *ret_bufs[NR_DPUS];
-	 uint32_t records_len[NR_DPUS] = {0};
-	 for (int i=0; i<NR_DPUS; i++) {
-	 	ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
-	 }
-	multi_dpu_test(raw, length, ret_bufs, records_len);
-#endif
-#if DEBUG
-	for(int d=0; d< NR_DPUS; d++) {
-		if(records_len[d] !=0) {
-		for (int k=0; k< records_len[d]; k++){
-			char c;
-			c= ret_bufs[d][k];
-			putchar(c);
-		}
-		printf("\n");
-		}
-	}
-#endif
 
 	json_query_t query = demo_queries[query_index]();
 	bench_rapidjson_engine(raw, length, query, query_index);
