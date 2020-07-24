@@ -162,13 +162,13 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 }
 
 
-long process_return_buffer(char* record_start, callback_data* cdata, uint64_t search_len) {
+long process_return_buffer(char* record_start, sparser_callback_t callback, callback_data* cdata, uint64_t search_len) {
     int pass = 0;
 
 	// char * record_end = (char *)memchr(record_start, '\n', search_len);
     // size_t record_length = record_end - record_start+1;
 	// dbg_printf("record length is %d\n", record_length);
-	if (_rapidjson_parse_callback_dpu(record_start, cdata, search_len+1)) {
+	if (callback(record_start, cdata)) {
 		pass = 1;
 	}
 	dbg_printf("length of the records is %d %c %c\n", search_len, record_start[0], record_start[search_len-2]);
@@ -251,7 +251,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 		for(uint32_t j=0; j<output_count[i]; j++) {
 			candidates++;
 			dbg_printf("dpu %d record_offsets %d\n", i, record_offsets[i][j]);
-			parse_suceed += process_return_buffer(base+record_offsets[i][j].offset, &cdata, record_offsets[i][j].length);
+			parse_suceed += process_return_buffer(base+record_offsets[i][j].offset, _rapidjson_parse_callback, &cdata, record_offsets[i][j].length);
 			dbg_printf("%u ", record_offsets[i][j].offset);
 		}
 		dbg_printf("\n");
