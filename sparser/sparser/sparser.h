@@ -123,6 +123,8 @@ typedef struct sparser_stats_ {
     double fraction_passed_incorrect;
 	// total time spent on parse
 	double parse_time;
+	// semi process time;
+	double process_time;
 } sparser_stats_t;
 
 typedef struct search_data {
@@ -477,6 +479,7 @@ sparser_stats_t *sparser_search(char *input, long length, BYTE delimiter,
     sparser_stats_t stats;
     memset(&stats, 0, sizeof(stats));
 	double parse_time = 0.0;
+	double process_time = 0.0;
 
 		// Last byte in the data.
 		char *input_last_byte = input + length - 1;
@@ -489,7 +492,7 @@ sparser_stats_t *sparser_search(char *input, long length, BYTE delimiter,
 		current_record_start = input;
 
 		while (current_record_start < input_last_byte) {
-
+			bench_timer_t s_1 = time_start();
 			stats.records++;
 
       // TODO for binary data, we don't want to do this: Instead, we search forward
@@ -511,15 +514,15 @@ sparser_stats_t *sparser_search(char *input, long length, BYTE delimiter,
 				stats.total_matches++;
 				count++;
 			}
-
+			process_time += time_stop(s_1);
 			// If all raw filters matched...
 			if (count == query->count) {
 				stats.sparser_passed++;
-				// bench_timer_t s = time_start();
+				bench_timer_t s = time_start();
 				if (callback(current_record_start, callback_ctx)) {
 					stats.callback_passed++;
 				}
-				// parse_time += time_stop(s);
+				parse_time += time_stop(s);
 			}
 
 			// Update to point to the next record. The top of the loop will update the remaining variables.
@@ -532,6 +535,7 @@ sparser_stats_t *sparser_search(char *input, long length, BYTE delimiter,
         stats.fraction_passed_incorrect = 1.0 - stats.fraction_passed_correct;
     }
 	stats.parse_time = parse_time;
+	stats.process_time = process_time;
     sparser_stats_t *ret = (sparser_stats_t *)malloc(sizeof(sparser_stats_t));
     memcpy(ret, &stats, sizeof(stats));
 

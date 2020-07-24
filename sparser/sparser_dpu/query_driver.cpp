@@ -155,7 +155,8 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
   printf("RapidJSON with Sparser:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", cdata.count, elapsed);
   printf("stats callback_passed %d\n", stats->callback_passed);
   printf("stats sparser passed%d\n", stats->sparser_passed);
-  printf("stats parse time %f seconds\n", stats->parse_time); 	
+  printf("stats parse time %f seconds\n", stats->parse_time);
+  printf("stats process time %f seconds\n", stats->process_time); 	
   free(stats);
   free(query);
   return elapsed;
@@ -271,7 +272,6 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 #define OK       0
 #define END_OF_FILE 1
 #define TOO_LONG 2
-
 // From https://stackoverflow.com/questions/4023895/how-to-read-string-entered-by-user-in-c
 static int getLine (const char *prmpt, char *buff, size_t sz) {
 	int ch, extra;
