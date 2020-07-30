@@ -18,4 +18,10 @@
 #define MAX_RECORD_SIZE 2048
 #define MAX_NUM_RETURNS (1 << 19)
 
+typedef struct json_candidate
+{
+    uint32_t length;
+    uint32_t offset;
+}json_candidate;
+
 #endif /* __DPU_COMMON_H__ */

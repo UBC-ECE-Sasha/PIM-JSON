@@ -94,8 +94,8 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
             o_end = (dpu_indx+1) * dpu_blocksize;
             r_end = memchr(input+o_end, '\n', length- o_end);
             input_offset[dpu_indx+1][0] = r_end-input +1;
-        #if HOST_DEBUG
-            dbg_printf("dpu %d starts at %d %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
+        #if 1
+            printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
         #endif
         }
     }
@@ -115,9 +115,14 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
 
                 o_end = (tasklet_index+1) * t_blocksize + input_offset[dpu_indx][0];
                 r_end = memchr(input+o_end, '\n', length- o_end);
+                if(r_end == NULL) {
+                    printf("NULL found\n");
+                }
                 input_offset[dpu_indx][tasklet_index+1] = (r_end-input +1 - (uint64_t)input_offset[dpu_indx][0]);
-                #if HOST_DEBUG
-                    dbg_printf("dpu %d tasklet %d starts at %d %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]]);
+                #if 0
+                    if(dpu_indx!= 0) {
+                        dbg_printf("dpu %d tasklet %d starts at %ld %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]+input_offset[dpu_indx][0]]);
+                    }
                 #endif
             }
 
@@ -135,14 +140,14 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
 *
 *
 ****************************************************************************************************/
-void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long length, uint32_t record_offsets[NR_DPUS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t output_count[NR_DPUS]){
+void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long length, struct json_candidate record_offsets[NR_DPUS][MAX_NUM_RETURNS], uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t output_count[NR_DPUS]){
     struct dpu_set_t set, dpu, dpu_rank;
     uint32_t nr_of_dpus;
     uint32_t nr_of_ranks;
     struct timeval start;
 	struct timeval end;
         
-    length = MEGABYTE(2);//4330180661;
+    length = MEGABYTE(4);//4330180661;
 
     if(keys == NULL) {
         printf("no keys found\n");
@@ -244,8 +249,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
             dpu_id++;
         }
 
-        // DPU_ASSERT(dpu_copy_from(dpu_rank, "RECORDS_OFFSETS", 0, &(record_offsets[rank_id*dpus_per_rank]),sizeof(uint32_t) * MAX_NUM_RETURNS*dpus_per_rank));
-        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_FROM_DPU, "RECORDS_OFFSETS", 0, sizeof(uint32_t)* ALIGN(largest_count, 8), DPU_XFER_DEFAULT));
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_FROM_DPU, "candidates", 0, sizeof(struct json_candidate)* ALIGN(largest_count, 8), DPU_XFER_DEFAULT));
 
     }
 

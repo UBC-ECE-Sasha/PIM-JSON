@@ -2,6 +2,7 @@
 #define _DEMO_QUERIES_H_
 
 #include "rapidjson_engine.h"
+#include "../dpu_common.h"
 
 // The RapidJSON query engine.
 json_query_engine_t rapidjson_engine = json_query_rapidjson_execution_engine;
@@ -21,6 +22,10 @@ typedef struct callback_info {
 // Structs for storing projected fields of queries (e.g., zakir_q9_proj_t)
 // need to be packed, so that UnsafeRow reads them correctly
 #pragma pack(1)
+#ifndef QUERY
+#define QUERY NULL
+#endif
+
 
 // ************************ DEMO QUERY 2 **************************
 
@@ -79,6 +84,11 @@ SELECT count(*)\n\
 FROM tweets\n\
 WHERE text contains \"delicious\" AND name contains \"steak\"";
 
+const char *DEMO_QUERY12_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"aaba\"";
+
 
 json_passed_t demo_q1_text(const char *value, void *) {
     return strstr(value, "Yoga") && strstr(value, "Fitness") ? JSON_PASS : JSON_FAIL;
@@ -124,6 +134,9 @@ json_passed_t demo_q11_text(const char *value, void *) {
     return strstr(value, "delicious") && strstr(value, "steak") ? JSON_PASS : JSON_FAIL;
 }
 
+json_passed_t demo_q12_text(const char *value, void *) {
+    return strstr(value, XSTR(QUERY)) ? JSON_PASS : JSON_FAIL;
+}
 
 json_query_t demo_query1() {
     json_query_t query = json_query_new();
@@ -191,7 +204,11 @@ json_query_t demo_query11() {
     return query;
 }
 
-
+json_query_t demo_query12() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q12_text);
+    return query;
+}
 
 static const char **sparser_demo_query1(int *count) {
     static const char *_1 = "Yoga";
@@ -276,9 +293,16 @@ static const char **sparser_demo_query11(int *count) {
     return predicates;
 }
 
+static const char **sparser_demo_query12(int *count) {
+    static const char *_1 = XSTR(QUERY);
+    static const char *predicates[] = {_1, NULL};
+    *count = 1;
+    return predicates;
+}
+
 // ************** All the queries we want to test **************
-const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, demo_query8, demo_query9, demo_query10, demo_query11, NULL};
-const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, sparser_demo_query8, sparser_demo_query9, sparser_demo_query10, sparser_demo_query11, NULL};
-const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, DEMO_QUERY8_STR, DEMO_QUERY9_STR, DEMO_QUERY10_STR, DEMO_QUERY11_STR, NULL };
+const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, demo_query8, demo_query9, demo_query10, demo_query11, demo_query12, NULL};
+const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, sparser_demo_query8, sparser_demo_query9, sparser_demo_query10, sparser_demo_query11, sparser_demo_query12, NULL};
+const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, DEMO_QUERY8_STR, DEMO_QUERY9_STR, DEMO_QUERY10_STR, DEMO_QUERY11_STR, DEMO_QUERY12_STR, NULL };
 
 #endif
