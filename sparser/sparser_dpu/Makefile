@@ -4,7 +4,8 @@ INCLUDES=-I../sparser -I../json -I../json/rapidjson/include -I .. -I .
 NR_TASKLETS ?= 4
 NR_DPUS ?= 2
 QUERY ?= aaba
-HOST_FLAGS := -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS}
+SIMULATOR ?= 1
+HOST_FLAGS := -DNR_TASKLETS=${NR_TASKLETS} -DNR_DPUS=${NR_DPUS} -DSIMULATOR=${SIMULATOR}
 #DPU_FLAGS:= -I/home/larry/workspace/upmem-2020.2.1-Linux-x86_64/include/dpu #-L/home/larry/workspace/upmem-2020.2.1-Linux-x86_64/lib -ldpu 
 DPU_FLAGS:= `dpu-pkg-config --cflags --libs dpu`
 # dpu
