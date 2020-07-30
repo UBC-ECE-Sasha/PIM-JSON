@@ -3,8 +3,8 @@
 
 #define XSTR(x) STR(x)
 #define STR(x) #x
-
-// /* DPU variable that will be read of write by the host */
+#include "../../PIM-common/common/include/common.h"
+// /* DPU variable that will be read of written by the host */
 #define DPU_BUFFER dpu_mram_buffer
 #define DPU_CACHES dpu_wram_caches
 #define DPU_RESULTS dpu_wram_results
@@ -13,8 +13,15 @@
 #define RECORDS_LENGTH dpu_records_len
 
 #define BUFFER_SIZE (1 << 20)//(16<<20)//(3 << 19)
-#define MAX_KEY_SIZE 32
-#define RETURN_RECORDS_SIZE (1<<20)
+#define MAX_KEY_SIZE 8
+#define RETURN_RECORDS_SIZE (8<<20)
 #define MAX_RECORD_SIZE 2048
+#define MAX_NUM_RETURNS (1 << 19)
+
+typedef struct json_candidate
+{
+    uint32_t length;
+    uint32_t offset;
+}json_candidate;
 
 #endif /* __DPU_COMMON_H__ */

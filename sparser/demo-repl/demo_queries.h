@@ -32,15 +32,25 @@ WHERE text contains \"Trump\" AND text contains \"Putin\"";
 const char *DEMO_QUERY2_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE summary contains \"Excellent\"";
+WHERE text contains \"Trump\"";
+
+const char *DEMO_QUERY3_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"Chinese\"";
 
 json_passed_t demo_q1_text(const char *value, void *) {
     return strstr(value, "Trump") && strstr(value, "Putin") ? JSON_PASS : JSON_FAIL;
 }
 
 json_passed_t demo_q2_text(const char *value, void *) {
-    return strstr(value, "Excellent") ? JSON_PASS : JSON_FAIL;
+    return strstr(value, "Trump") ? JSON_PASS : JSON_FAIL;
 }
+
+json_passed_t demo_q3_text(const char *value, void *) {
+    return strstr(value, "Chinese") ? JSON_PASS : JSON_FAIL;
+}
+
 
 json_query_t demo_query1() {
     json_query_t query = json_query_new();
@@ -50,7 +60,13 @@ json_query_t demo_query1() {
 
 json_query_t demo_query2() {
     json_query_t query = json_query_new();
-    json_query_add_string_filter(query, "summary", demo_q2_text);
+    json_query_add_string_filter(query, "text", demo_q2_text);
+    return query;
+}
+
+json_query_t demo_query3() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q3_text);
     return query;
 }
 
@@ -64,15 +80,22 @@ static const char **sparser_demo_query1(int *count) {
 }
 
 static const char **sparser_demo_query2(int *count) {
-    static const char *_1 = "Excellent";
+    static const char *_1 = "Trump";
+    static const char *predicates[] = {_1, NULL};
+    *count = 1;
+    return predicates;
+}
+
+static const char **sparser_demo_query3(int *count) {
+    static const char *_1 = "Chinese";
     static const char *predicates[] = {_1, NULL};
     *count = 1;
     return predicates;
 }
 
 // ************** All the queries we want to test **************
-const zakir_query_t demo_queries[] = {demo_query1, demo_query2, NULL};
-const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, NULL };
-const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, NULL };
+const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, NULL};
+const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3,NULL };
+const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR,NULL };
 
 #endif
