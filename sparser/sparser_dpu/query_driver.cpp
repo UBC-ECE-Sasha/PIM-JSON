@@ -48,13 +48,14 @@ int _rapidjson_parse_callback(const char *line, void *query) {
 }
 
 
-int _rapidjson_parse_callback_dpu(const char *line, void *query, size_t length) {
+int _rapidjson_parse_callback_dpu(char *line, void *query, size_t length) {
   if (!query) return false;
 	struct callback_data *data = (struct callback_data *)query;
-  char *newline = (char *)memchr(line, '\n', length);
-
+  
+  // char *newline = (char *)memchr(line, '\n', length);
+  char *newline = &(line[length]);
   // Last one?
-  if (!newline) {
+  if (*newline != '\n') {
 	// printf("no new line \n");
     newline = (char *)(line + strlen(line) + 1);
   }
