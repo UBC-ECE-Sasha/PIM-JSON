@@ -53,7 +53,6 @@ bool parseKey() {
         printf("invalid key\n");
         return false;
     }
-  
 }
 
 void printRecord(uint8_t* record_start, uint32_t length) {
@@ -107,7 +106,7 @@ void writeBackRecords(uint8_t* record_start, uint32_t length) {
     // lazy way to solve the src addr has to be 8 byte aligned
     // memcpy(ptr, record_start, length+1);
     // ptr[length+1] = '\n';
-
+    //printRecord(record_start, length);
     uint32_t temp = RECORDS_LENGTH;
     RECORDS_LENGTH +=  roundUp8(length+(uintptr_t)record_start%8);
     // uint8_t* adjust_star = (uint8_t*)roundDown8((uintptr_t)record_start);
@@ -132,7 +131,8 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
     star[tasklet_id] = &(DPU_BUFFER[start]);
     uint8_t __mram_ptr * max_addr =  &DPU_BUFFER[BUFFER_SIZE-1];
     uint32_t initial_offset = 0;
-
+    
+    printf("tasklet %d start index %x", tasklet_id, ((uintptr_t))star[tasklet_id]);
     mram_read(star[tasklet_id], cache, BLOCK_SIZE);
 
 
@@ -213,7 +213,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                 if(strstr_org(record_start, record_length)) {
                     // call writeback records TODO
                     writeBackRecords(record_start, record_length);
-                    printf("strstr\n");
+                    //printf("strstr\n");
                 }
             }
 
@@ -248,7 +248,7 @@ bool parseJson(uint32_t start, uint32_t offset, uint8_t* cache) {
                     if(record_end -record_start> MIN_RECORDS_LENGTH) {
                         if(strstr_org(record_start, (record_end -record_start))) {
                             writeBackRecords(record_start, (record_end -record_start));
-                            printf("second strstr \n");
+                            //printf("second strstr \n");
                         }
                         record_count++;
                     }
@@ -286,11 +286,17 @@ int main() {
             return 0;
         }
         //initialize_allocator();
+        //mram_read(&(DPU_BUFFER[0]), cache, BLOCK_SIZE);
+        //printRecord(cache, BLOCK_SIZE/2);
+        //return 0;
     }
+    // else {
+    //     return 0;
+    // }
 
     if(!parseJson(start_index, offset, cache) ){
         return 0;
     }
 
-    printf("dpu done\n");
+    //printf("dpu done\n");
 }

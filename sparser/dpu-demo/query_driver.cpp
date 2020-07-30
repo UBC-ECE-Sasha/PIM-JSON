@@ -14,6 +14,7 @@ extern "C" {
 #include "dpu_common.h"
 }
 #include <assert.h>
+#include <sys/time.h>
 // This is some data we pass to the callback. In this example, we pass a JSON query
 // so our JSON parser can parse the record, and a count to update the number of matching
 // records.
@@ -95,38 +96,18 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 }
 
 
-void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, ascii_rawfilters_t *predicates, int queryno) {
-  bench_timer_t s = time_start();
-  struct callback_data cdata;
-	cdata.count = 0;
-  cdata.query = jquery;	
-	char* ret_buf;
+int process_return_buffer(char* buf, uint32_t length,struct callback_data* cdata){
+	int n_succeed = 0;
 	int record_count = 0;
-	int parse_suceed =0;
 
-  ret_buf = (char*) malloc(RETURN_RECORDS_SIZE);
-  // XXX Generate a schedule
-  #if ENABLE_CALIBRATE 
-  sparser_query_t *query = sparser_calibrate(data, length, '\n', predicates, _rapidjson_parse_callback, &cdata);
-  #elif
-  sparser_query_t *query = sparser_new_query();
-  memset(query, 0, sizeof(sparser_query_t));	
-  query->count = 1;
-  memcpy(query->queries[query->count], "abaa", 4);
-	// printf("dpu searched query is %s query count %d\n", query->queries[0], query->count);
-	// get the filtered buffer
-  #endif
-
-	dpu_test(data, query->queries[0], ret_buf);
-	double elapsed = time_stop(s);
 	/// Last byte in the data.
-	char *input_last_byte = ret_buf + RETURN_RECORDS_SIZE - 1;
+	char *input_last_byte = buf + length; //-1;
 	// Points to the end of the current record.
 	char *current_record_end;
 	// Points to the start of the current record.
 	char *current_record_start;
 
-	current_record_start = ret_buf;
+	current_record_start = buf;
 	while (current_record_start < input_last_byte) {
 		record_count++;
 			current_record_end = (char *)memchr(current_record_start, '\n',
@@ -135,26 +116,96 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 				current_record_end = input_last_byte;
 			}
 			size_t record_length = current_record_end - current_record_start;
-			#if DEBUG
-			printf("cpu record length %d\n", record_length);
-			for (int k=0; k< record_length; k++){
-					char c;
-					c= current_record_start[k];
-					putchar(c);
-			}
-			printf("\n");
-			#endif 			
-			if (_rapidjson_parse_callback(current_record_start, &cdata)) {
-					parse_suceed++;
-			}					
+
+			// magic number
+			if( record_length < MAX_RECORD_SIZE+1) {
+				#if DEBUG
+				printf("cpu record length %d\n", record_length);
+				for (int k=0; k< record_length; k++){
+						char c;
+						c= current_record_start[k];
+						putchar(c);
+				}
+				printf("\n");
+				#endif				
+				if (_rapidjson_parse_callback(current_record_start, cdata)) {
+						n_succeed++;
+				}	
+			} 			
+				
 			
 			// Update to point to the next record. The top of the loop will update the remaining variables.
 			current_record_start = current_record_end + 1;
 	}
-	
-  printf("RapidJSON with Sparser plus DPU:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", parse_suceed, elapsed);
 
+	return n_succeed;
 }
+
+
+
+void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, ascii_rawfilters_t *predicates, int queryno) {
+  struct timeval start;
+  struct timeval end;
+  bench_timer_t s = time_start();
+  struct callback_data cdata;
+	cdata.count = 0;
+  	cdata.query = jquery;	
+	// char* ret_buf;
+
+	int parse_suceed =0;
+
+	// XXX Generate a schedule
+	#if ENABLE_CALIBRATE 
+	sparser_query_t *query = sparser_calibrate(data, length, '\n', predicates, _rapidjson_parse_callback, &cdata);
+	#elif
+	sparser_query_t *query = sparser_new_query();
+	memset(query, 0, sizeof(sparser_query_t));	
+	query->count = 1;
+	memcpy(query->queries[query->count], "abaa", 4);
+		// printf("dpu searched query is %s query count %d\n", query->queries[0], query->count);
+		// get the filtered buffer
+	#endif
+
+	// get the return buffer array ready
+	uint8_t *ret_bufs[NR_DPUS];
+	uint32_t records_len[NR_DPUS];
+
+	int i=0;
+	for (i=0; i<NR_DPUS; i++) {
+		ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
+	}
+
+	// process the records
+	//multi_dpu_test(data, length, ret_bufs);
+	multi_dpu_test(data, length, ret_bufs, records_len);
+#if 0
+	for(int d=0; d< NR_DPUS; d++) {
+		if(records_len[d] !=0) {
+		printf("dpu %d found : \n", d);
+		for (int k=0; k< records_len[d]; k++){
+			char c;
+			c= ret_bufs[d][k];
+			putchar(c);
+		}
+		printf("\n");
+		}
+	}
+#endif
+	//process the return buffer
+	gettimeofday(&start, NULL);
+	for (i=0; i<NR_DPUS; i++) {
+		if (records_len[i] != 0) {
+			parse_suceed += process_return_buffer((char*)ret_bufs[i], records_len[i], &cdata);
+		}
+	}
+	gettimeofday(&end, NULL);
+
+	double elapsed = time_stop(s);
+  	printf("RapidJSON with Sparser plus DPU:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", parse_suceed, elapsed);
+	double start_time = start.tv_sec + start.tv_usec / 1000000.0;
+	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
+    printf("host process (parser) %g s\n", end_time - start_time);
+}	
 
 
 #define OK       0
@@ -200,6 +251,27 @@ void process_query(char *raw, long length, int query_index) {
 
 	bench_sparser_engine(raw, length, jquery, &d, query_index);
 	bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
+#if MEM
+	 uint8_t *ret_bufs[NR_DPUS];
+	 uint32_t records_len[NR_DPUS];
+	 for (int i=0; i<NR_DPUS; i++) {
+	 	ret_bufs[i] = (uint8_t *) malloc(RETURN_RECORDS_SIZE);
+	 }
+	multi_dpu_test(raw, length, ret_bufs, records_len);
+#endif
+#if DEBUG
+	for(int d=0; d< NR_DPUS; d++) {
+		if(records_len[d] !=0) {
+		for (int k=0; k< records_len[d]; k++){
+			char c;
+			c= ret_bufs[d][k];
+			putchar(c);
+		}
+		printf("\n");
+		}
+	}
+#endif
+
 
 	json_query_t query = demo_queries[query_index]();
 	bench_rapidjson_engine(raw, length, query, query_index);

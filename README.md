@@ -1,11 +1,11 @@
 # PIM-JSON
 JSON to binary conversion in memory
 
-##strstr/
+## strstr/
 This is a base implementation of recognizing records and search pattern string host-dpu program  
 DPU code in this folder is slightly out-dated, the latest code is in sparser/
 
-##sparser/
+## sparser/
 This is integrating the dpu implementation of strstr to the existing sparser code base  
 RapidJson is used for the host to do actual parsing  
 
