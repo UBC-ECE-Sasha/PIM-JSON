@@ -52,7 +52,6 @@ int _rapidjson_parse_callback_dpu(char *line, void *query, size_t length) {
   if (!query) return false;
 	struct callback_data *data = (struct callback_data *)query;
   
-  // char *newline = (char *)memchr(line, '\n', length);
   char *newline = &(line[length]);
   // Last one?
   if (*newline != '\n') {
@@ -167,9 +166,6 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 long process_return_buffer(char* record_start, sparser_callback_t callback, callback_data* cdata, uint64_t search_len) {
     int pass = 0;
 
-	// char * record_end = (char *)memchr(record_start, '\n', search_len);
-    // size_t record_length = record_end - record_start+1;
-	// dbg_printf("record length is %d\n", record_length);
 	if (callback(record_start, cdata)) {
 		pass = 1;
 	}
@@ -249,7 +245,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 	for (uint32_t i =0; i< NR_DPUS; i++) {
 		char* base = data + input_offset[i][0];
 		dbg_printf("dpu %d output count is %d\n", i, output_count[i]);
-		// quicksort(record_offsets[i], 0, output_count[i]-1);
+		// quicksort(record_offsets[i], 0, output_count[i]-1); // sort here didn't help
 		for(uint32_t j=0; j<output_count[i]; j++) {
 			candidates++;
 			dbg_printf("dpu %d record_offsets %d\n", i, record_offsets[i][j]);
