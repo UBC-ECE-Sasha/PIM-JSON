@@ -146,8 +146,10 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     uint32_t nr_of_ranks;
     struct timeval start;
 	struct timeval end;
-        
-    length = MEGABYTE(4);//4330180661;
+    
+    #if SIMULATOR
+        length = MEGABYTE(4);//4330180661;
+    #endif  
 
     if(keys == NULL) {
         printf("no keys found\n");
