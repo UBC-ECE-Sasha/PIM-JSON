@@ -95,7 +95,7 @@ bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][N
             r_end = memchr(input+o_end, '\n', length- o_end);
             input_offset[dpu_indx+1][0] = r_end-input +1;
         #if 1
-            printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
+            dbg_printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
         #endif
         }
     }
@@ -170,6 +170,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     DPU_ASSERT(dpu_load(set, DPU_BINARY, NULL));
 
     unsigned int dpu_id = 0;
+    unsigned int dpu_id_rank = 0;
     uint32_t input_length[NR_DPUS] = {0};
     // caculate offset for each tasklet
     calculate_offset(input, length, input_offset, input_length);
@@ -185,8 +186,9 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     uint8_t rank_id;
     UNUSED(rank_id);
 
-    DPU_RANK_FOREACH(set, dpu_rank, rank_id)
+    DPU_RANK_FOREACH(set, dpu_rank)
     {
+        dpu_id = dpu_id_rank;
         // copy data shared among ranks
         DPU_ASSERT(dpu_copy_to(dpu_rank, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
@@ -209,7 +211,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
         }
         DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "dpu_mram_buffer", 0, ALIGN(largest_length, 8), DPU_XFER_DEFAULT));
 
-        dpu_id = 0;
+        dpu_id = dpu_id_rank;
         DPU_FOREACH(dpu_rank, dpu)
         {
             for (int t=0; t<NR_TASKLETS; t++) {
@@ -220,15 +222,15 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
         }
         DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_offset", 0, sizeof(uint32_t) * NR_TASKLETS, DPU_XFER_DEFAULT));
 
-        dpu_id = 0;
+        dpu_id = dpu_id_rank;
         DPU_FOREACH(dpu_rank, dpu)
         {
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)&(input_length[dpu_id])));
             dpu_id++;
         }        
         DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_length", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
+        dpu_id_rank = dpu_id;
     }
-
     
     gettimeofday(&end, NULL);
     start_time = start.tv_sec + start.tv_usec / 1000000.0;
