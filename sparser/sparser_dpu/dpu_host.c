@@ -194,19 +194,39 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
         uint32_t largest_length = 0;
         DPU_FOREACH(dpu_rank, dpu)
         {
-#if 1
+#if ORG_TRANSFER
+
             // input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
             for (int t=0; t<NR_TASKLETS; t++) {
                 temp_offset[t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
             }
-#endif
             DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
             DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
+#endif
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(input+input_offset[dpu_id][0])));
             largest_length = (input_length[dpu_id] > largest_length) ? input_length[dpu_id] : largest_length;
             dpu_id++; 
         }
         DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "dpu_mram_buffer", 0, ALIGN(largest_length, 8), DPU_XFER_DEFAULT));
+
+        dpu_id = 0;
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+            for (int t=0; t<NR_TASKLETS; t++) {
+                temp_offset[t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
+            }
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)temp_offset));
+            dpu_id++;
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_offset", 0, sizeof(uint32_t) * NR_TASKLETS, DPU_XFER_DEFAULT));
+
+        dpu_id = 0;
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)&(input_length[dpu_id])));
+            dpu_id++;
+        }        
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_length", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
     }
 
     
