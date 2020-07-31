@@ -309,8 +309,8 @@ void process_query(char *raw, long length, int query_index) {
 	bench_sparser_engine(raw, length, jquery, &d, query_index);
 	bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
 
-	json_query_t query = demo_queries[query_index]();
-	bench_rapidjson_engine(raw, length, query, query_index);
+	// json_query_t query = demo_queries[query_index]();
+	// bench_rapidjson_engine(raw, length, query, query_index);
 
 
   free_ascii_rawfilters(&d);
@@ -354,7 +354,8 @@ int main(int argc, char **argv) {
 
 	while (true) {
     int rc;
-    char buff[1024];
+    #if 0
+	char buff[1024];
     rc = getLine ("Sparser> ", buff, sizeof(buff));
     if (rc == END_OF_FILE) {
         printf ("\nEOF\n");
@@ -365,7 +366,8 @@ int main(int argc, char **argv) {
         printf ("Input too long [%s]\n", buff);
 				continue;
     }
-
+	#endif
+		char* buff = argv[2];
 		if (strcmp(buff, "queries") == 0) {
 			printf("Dataset: %s (%f GB)\n", filename, (double)length / 1e9);
 			print_queries(num_queries);
