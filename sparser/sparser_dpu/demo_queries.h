@@ -47,7 +47,7 @@ WHERE text contains \"Trump\"";
 const char *DEMO_QUERY4_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"America\"";
+WHERE text contains \"aabaa\"";
 
 const char *DEMO_QUERY5_STR = "\n\
 SELECT count(*)\n\
@@ -103,7 +103,7 @@ json_passed_t demo_q3_text(const char *value, void *) {
 }
 
 json_passed_t demo_q4_text(const char *value, void *) {
-    return strstr(value, "America") ? JSON_PASS : JSON_FAIL;
+    return strstr(value, "aabaa") ? JSON_PASS : JSON_FAIL;
 }
 
 json_passed_t demo_q5_text(const char *value, void *) {
@@ -234,7 +234,7 @@ static const char **sparser_demo_query3(int *count) {
 }
 
 static const char **sparser_demo_query4(int *count) {
-    static const char *_1 = "America";
+    static const char *_1 = "aabaa";
     static const char *predicates[] = {_1, NULL};
     *count = 1;
     return predicates;
