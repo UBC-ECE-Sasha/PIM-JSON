@@ -100,6 +100,16 @@ static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
     return ret;
 }
 
+static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
+    unsigned int ret = _i->ptr[0] << 24 |
+                  (_i->ptr[1] << 16) |
+                  (_i->ptr[2] << 8) | 
+                  (_i->ptr[3]);
+    
+    _i->ptr = seqread_get(_i->ptr, sizeof(uint32_t), &_i->sr);
+    return ret;
+}
+
 
 static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
     int i =4-len;
@@ -221,7 +231,7 @@ static void dpu_strstr(struct in_buffer_context *input) {
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
 
-    unsigned int a = READ_4_BYTE(input);       
+    unsigned int a = READ_4_BYTE_4(input);       
     uint32_t query_passed_count = 0;
 
     do { 
