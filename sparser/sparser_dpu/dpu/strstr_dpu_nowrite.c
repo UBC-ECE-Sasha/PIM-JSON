@@ -84,7 +84,7 @@ static void printRecord(uint8_t* record_start, uint32_t length) {
     printf("\n");
 }
 #endif 
-
+#ifdef SEQ_4
 static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
    unsigned int ret = 0;
    int i =0;
@@ -99,18 +99,41 @@ static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 
     return ret;
 }
+#endif
 
 static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
+    
+
     unsigned int ret = _i->ptr[0] << 24 |
                   (_i->ptr[1] << 16) |
                   (_i->ptr[2] << 8) | 
                   (_i->ptr[3]);
-    
     _i->ptr = seqread_get(_i->ptr, sizeof(uint32_t), &_i->sr);
     return ret;
 }
 
+static void READ_X_BYTE_4(unsigned int *a, struct in_buffer_context *_i, int len, bool p) {
+    
 
+    if(p) {
+        for(int k=0;k<len;k++){
+            printf("%x", _i->ptr[k]);
+        }
+        printf("\n");
+    }
+
+    int i = 4-len;
+    int j = 0;
+    *a = *a << (len<<3);
+    do {
+        *a = *a | (_i->ptr[j]) << (8 *(3-i));
+        i++;
+        j++;
+    } while(i<4);
+    _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t)*(len), &_i->sr);
+}
+
+#ifdef SEQ_4
 static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
     int i =4-len;
     *a = *a << (len<<3);
@@ -121,7 +144,7 @@ static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) 
         i++;
    } while(i<4);
 }
-
+#endif
 
 static bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
     unsigned int res = 0;
@@ -231,7 +254,15 @@ static void dpu_strstr(struct in_buffer_context *input) {
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
 
-    unsigned int a = READ_4_BYTE_4(input);       
+    unsigned int a = READ_4_BYTE_4(input);
+    printf("tasklet %d reads %x\n", tasklet_id, a);
+    // unsigned int a = input->ptr[0];
+    
+    // READ_X_BYTE_4(&a, input, 2,true);
+    // printf("tasklet %d starting %x %x %x\n",tasklet_id, a, input->ptr[1], input->ptr[2]);
+    // input->ptr = seqread_get(input->ptr, sizeof(uint8_t)*(2), &input->sr);
+    // printf("tasklet %d starting %x %x %x\n",tasklet_id, input->ptr[0], input->ptr[1], input->ptr[2]);
+
     uint32_t query_passed_count = 0;
 
     do { 
@@ -251,12 +282,12 @@ static void dpu_strstr(struct in_buffer_context *input) {
             case 1:
             case 2:
             case 3:
-                READ_X_BYTE(&a, input, next);
+                READ_X_BYTE_4(&a, input, next, false);
                 input->curr += next;
                 break;
             case 4:
             default: 
-                a = READ_4_BYTE(input);
+                a = READ_4_BYTE_4(input);
                 input->curr +=4;
                 break;
         }
