@@ -13,6 +13,7 @@
 #include <sys/time.h>
 #include <limits.h>
 
+#include "../../../PIM-common/host/include/host.h"
 #include "dpu_host.h"
 #include "../dpu_common.h"
 // dpu binary location TBD
@@ -28,7 +29,8 @@
  * Utility functions 
  *  
  **/
-dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, const void *src, size_t length){
+#if HOST_DEBUG
+static dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, const void *src, size_t length){
     dpu_error_t status;
     struct dpu_program_t *program;
     struct dpu_symbol_t symbol;
@@ -42,7 +44,7 @@ dpu_error_t dpu_copy_to_dpu(struct dpu_set_t dpu, const char *symbol_name, uint3
 }
 
 
-dpu_error_t dpu_copy_from_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, void *dst, size_t length){
+static dpu_error_t dpu_copy_from_dpu(struct dpu_set_t dpu, const char *symbol_name, uint32_t symbol_offset, void *dst, size_t length){
     dpu_error_t status;
     struct dpu_program_t *program;
     struct dpu_symbol_t symbol;
@@ -55,7 +57,7 @@ dpu_error_t dpu_copy_from_dpu(struct dpu_set_t dpu, const char *symbol_name, uin
     return dpu_copy_from_symbol_dpu(dpu.dpu, symbol, symbol_offset, dst, length);
 }
 
-void printRecord(char* record_start, uint32_t length) {
+static void printRecord(char* record_start, uint32_t length) {
     for(uint32_t i =0; i< length; i++){
         printf("%c", record_start[i]);
     }
@@ -63,24 +65,10 @@ void printRecord(char* record_start, uint32_t length) {
     printf("\n");
     printf("\n");
 }
-
-void printRecordNoLen(char* record_start) {
-    for(uint32_t i =0; i< 4096; i++){
-        if(record_start[i] != '\n') {
-            printf("%c", record_start[i]);
-        }
-        else {
-            break;
-        }
-
-    }
-    printf("\n");
-    printf("\n");
-}
-
+#endif
 
 // give a large file we need to divide the file into proper chunks for each dpu and each tasklet
-bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
+static bool calculate_offset(char *input, long length, uint64_t input_offset[NR_DPUS][NR_TASKLETS], uint32_t input_length[NR_DPUS]) {
     long dpu_blocksize = (ALIGN_LONG(length, 8)) / NR_DPUS;
     int dpu_indx = 0;
     int tasklet_index = 0;
@@ -175,10 +163,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     calculate_offset(input, length, input_offset, input_length);
     gettimeofday(&end, NULL);
     printf("Got %u dpus across %u ranks (%u dpus per rank)\n", nr_of_dpus, nr_of_ranks, dpus_per_rank);
-
-    double start_time = start.tv_sec + start.tv_usec / 1000000.0;
-	double end_time = end.tv_sec + end.tv_usec / 1000000.0;
-    printf("host preprocess took %g s \n", end_time - start_time);
+    printf("host preprocess took %g s \n", TIME_DIFFERENCE_GETTIMEOFDAY(start, end));
 
     gettimeofday(&start, NULL);
     uint32_t temp_offset[NR_TASKLETS] = {0};
@@ -211,17 +196,12 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
 
     
     gettimeofday(&end, NULL);
-    start_time = start.tv_sec + start.tv_usec / 1000000.0;
-	end_time = end.tv_sec + end.tv_usec / 1000000.0;
-
-    printf("host took %g s for transferring memory\n", end_time - start_time);
+    printf("host took %g s for transferring memory\n", TIME_DIFFERENCE_GETTIMEOFDAY(start, end));
 
     gettimeofday(&start, NULL);
     DPU_ASSERT(dpu_launch(set, DPU_SYNCHRONOUS));
     gettimeofday(&end, NULL);
-    start_time = start.tv_sec + start.tv_usec / 1000000.0;
-	end_time = end.tv_sec + end.tv_usec / 1000000.0;
-    printf("dpu launch took %g s\n", end_time - start_time);
+    printf("dpu launch took %g s\n", TIME_DIFFERENCE_GETTIMEOFDAY(start, end));
 #if 0
     {
         unsigned int each_dpu = 0;
@@ -256,8 +236,6 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     }
 
 
-    gettimeofday(&end, NULL);
-    start_time = start.tv_sec + start.tv_usec / 1000000.0;
-	end_time = end.tv_sec + end.tv_usec / 1000000.0;    
-    printf("dpu copy back records took %g s\n", end_time - start_time);
+    gettimeofday(&end, NULL);  
+    printf("dpu copy back records took %g s\n", TIME_DIFFERENCE_GETTIMEOFDAY(start, end));
 }

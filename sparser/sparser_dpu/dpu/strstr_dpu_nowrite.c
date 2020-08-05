@@ -43,17 +43,22 @@ MUTEX_INIT(write_mutex);
  *  
  **/
 static int find_next_set_bit(unsigned int res) {
-
+#if HOST_DEBUG
     for (int i=1; i< 4; i++){
         if(res & (0x01<<((3-i)<<3))){
             return i;
         }
     }
     return 4;
+#endif
+    if (res & 65536) return 1;
+    if (res & 256) return 2;
+    if (res & 1) return 3;
+    return 4;
 }
 
 
-void shift_same(uint8_t start, unsigned int *a){
+static void shift_same(uint8_t start, unsigned int *a){
     *a = 0;
     *a |= (start<< 24);
     *a |= (start<< 16);
@@ -61,8 +66,8 @@ void shift_same(uint8_t start, unsigned int *a){
     *a |= (start);
 }
 
-
-uint32_t roundUp8(uint32_t a) {
+#if DEBUG
+static uint32_t roundUp8(uint32_t a) {
     return a+8-a%8;
 }
 
@@ -70,7 +75,7 @@ uint32_t roundUp8(uint32_t a) {
 /*
  * debug function for displaying records
  */
-void printRecord(uint8_t* record_start, uint32_t length) {
+static void printRecord(uint8_t* record_start, uint32_t length) {
     for(int i =0; i< (int)length; i++){
         char c = (char)record_start[i];
         putchar(c);
@@ -78,9 +83,9 @@ void printRecord(uint8_t* record_start, uint32_t length) {
     printf("\n");
     printf("\n");
 }
+#endif 
 
-
-unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
+static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
    unsigned int ret = 0;
    int i =0;
 
@@ -96,7 +101,7 @@ unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 }
 
 
-void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
+static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
     int i =4-len;
     *a = *a << (len<<3);
    do {
@@ -108,7 +113,7 @@ void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
 }
 
 
-bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
+static bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
     unsigned int res = 0;
     unsigned int b = 0;
     int min_next = 5;
@@ -147,7 +152,7 @@ bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
 
 
 /* check if the record contains \n */
-bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
+static bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
 
     unsigned int b = 0x0A0A0A0A;
     unsigned int res = 0;
@@ -177,7 +182,7 @@ bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
 *
 *
 ****************************************************************************************************/
-void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct record_descrip* rec, int * next, uint32_t query_passed_count, uint8_t tasklet_id) {
+static void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct record_descrip* rec, int * next, uint32_t query_passed_count, uint8_t tasklet_id) {
     int kth_byte = 0;
     
     if(CHECK_4_BYTE(a, &kth_byte)) {
@@ -206,7 +211,7 @@ void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct re
 }
 
 
-void dpu_strstr(struct in_buffer_context *input) {
+static void dpu_strstr(struct in_buffer_context *input) {
     int next = 0;
     struct record_descrip rec;
     rec.record_start = input->mram_org;
