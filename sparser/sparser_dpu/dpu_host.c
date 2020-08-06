@@ -165,7 +165,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     printf("host preprocess took %g s \n", TIME_DIFFERENCE_GETTIMEOFDAY(start, end));
 
     gettimeofday(&start, NULL);
-    uint32_t temp_offset[NR_TASKLETS] = {0};
+    uint32_t temp_offset[NR_DPUS][NR_TASKLETS] = {0};
     uint8_t rank_id;
     UNUSED(rank_id);
 #ifdef BULK_TRANSFER
@@ -184,24 +184,49 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     DPU_RANK_FOREACH(set, dpu_rank, rank_id)
     {
         // copy data shared among ranks
-        // uint32_t starting_dpu_idx = dpu_id;
+        
 #ifdef NORM_TRANSFER
         DPU_ASSERT(dpu_copy_to(dpu_rank, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
-#endif
-        
-        
+#endif    
         uint32_t largest_length = 0;
+        uint32_t starting_dpu_idx = dpu_id;
+#ifdef BULK_TRANSFER
         DPU_FOREACH(dpu_rank, dpu)
         {
-#if 1
+            for (int t=0; t<NR_TASKLETS; t++) {
+                temp_offset[dpu_id][t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
+            }
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(&(temp_offset[dpu_id]))));
+            dpu_id++;
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_offset", 0, sizeof(uint32_t) * NR_TASKLETS, DPU_XFER_DEFAULT));
+        dpu_id = starting_dpu_idx;
+#endif
+
+#ifdef BULK_TRANSFER
+        starting_dpu_idx = dpu_id;
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)&(input_length[dpu_id])));
+            dpu_id++;
+        
+        }
+        dpu_id = starting_dpu_idx;
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_length", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
+#endif
+
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+#if NORM_TRANSFER
             // input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
             for (int t=0; t<NR_TASKLETS; t++) {
                 temp_offset[t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
             }
-#endif
+
             DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
             DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
+#endif
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(input+input_offset[dpu_id][0])));
             largest_length = (input_length[dpu_id] > largest_length) ? input_length[dpu_id] : largest_length;
             dpu_id++; 
