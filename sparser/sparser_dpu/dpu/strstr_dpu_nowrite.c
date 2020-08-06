@@ -38,6 +38,7 @@ __host uint32_t input_offset[NR_TASKLETS];
 __host volatile uint32_t offset_count = 0;
 
 MUTEX_INIT(write_mutex);
+MUTEX_INIT(read_mutex);
 
 /**
  * 
@@ -105,16 +106,18 @@ static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 
 void seqread_get_x(struct in_buffer_context *_i, uint32_t len){
     // 216
-    if(_i->seqread_indx+len > SEQ_READ_CACHE_SIZE) {
+    if((_i->seqread_indx+len) > SEQ_READ_CACHE_SIZE) {
+        mutex_lock(read_mutex);
         _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t)*(_i->seqread_indx+len), &_i->sr);
         _i->seqread_indx = 0;
+        mutex_unlock(read_mutex);
     }
     else {
         _i->seqread_indx += len;
     }
 }
 
-#ifdef SEQ_4_OP1
+// #ifdef SEQ_4_OP1
 static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
     
 
@@ -125,7 +128,7 @@ static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
     _i->ptr = seqread_get(_i->ptr, sizeof(uint32_t), &_i->sr);
     return ret;
 }
-#endif
+// #endif
 
 
 static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
@@ -286,7 +289,7 @@ static void dpu_strstr(struct in_buffer_context *input) {
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
 
-    unsigned int a = READ_4_BYTE_4X(input);
+    unsigned int a = READ_4_BYTE_4(input);
     printf("tasklet %d reads %x\n", tasklet_id, a);
     // unsigned int a = input->ptr[0];
     
