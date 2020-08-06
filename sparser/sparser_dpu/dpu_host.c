@@ -23,6 +23,7 @@
 #define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
 #define ALIGN_LONG(_p, _width) (((long)_p + (_width-1)) & (0-_width))
 #define HOST_DEBUG 0
+#define BULK_TRANSFER
 
 /**
  * 
@@ -82,9 +83,7 @@ static bool calculate_offset(char *input, long length, uint64_t input_offset[NR_
             o_end = (dpu_indx+1) * dpu_blocksize;
             r_end = memchr(input+o_end, '\n', length- o_end);
             input_offset[dpu_indx+1][0] = r_end-input +1;
-        #if 1
-            printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
-        #endif
+            dbg_printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
         }
     }
 
@@ -166,27 +165,68 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     printf("host preprocess took %g s \n", TIME_DIFFERENCE_GETTIMEOFDAY(start, end));
 
     gettimeofday(&start, NULL);
-    uint32_t temp_offset[NR_TASKLETS] = {0};
+    uint32_t temp_offset[NR_DPUS][NR_TASKLETS] = {0};
     uint8_t rank_id;
     UNUSED(rank_id);
+#ifdef BULK_TRANSFER
+    DPU_RANK_FOREACH(set, dpu_rank) {
+        DPU_ASSERT(dpu_prepare_xfer(dpu_rank, (void*)(keys)));
+    }
+    DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "key_cache", 0, sizeof(unsigned int)*keys_length, DPU_XFER_DEFAULT));
+    
+    DPU_RANK_FOREACH(set, dpu_rank) {
+        DPU_ASSERT(dpu_prepare_xfer(dpu_rank, (void*)(&keys_length)));
+    }
+    DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "query_count", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
 
+#endif  
+    
     DPU_RANK_FOREACH(set, dpu_rank, rank_id)
     {
         // copy data shared among ranks
+        
+#ifdef NORM_TRANSFER
         DPU_ASSERT(dpu_copy_to(dpu_rank, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
-
+#endif    
         uint32_t largest_length = 0;
+        uint32_t starting_dpu_idx = dpu_id;
+#ifdef BULK_TRANSFER
         DPU_FOREACH(dpu_rank, dpu)
         {
-#if 1
+            for (int t=0; t<NR_TASKLETS; t++) {
+                temp_offset[dpu_id][t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
+            }
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(&(temp_offset[dpu_id]))));
+            dpu_id++;
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_offset", 0, sizeof(uint32_t) * NR_TASKLETS, DPU_XFER_DEFAULT));
+        dpu_id = starting_dpu_idx;
+#endif
+
+#ifdef BULK_TRANSFER
+        starting_dpu_idx = dpu_id;
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)&(input_length[dpu_id])));
+            dpu_id++;
+        
+        }
+        dpu_id = starting_dpu_idx;
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "input_length", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
+#endif
+
+        DPU_FOREACH(dpu_rank, dpu)
+        {
+#if NORM_TRANSFER
             // input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
             for (int t=0; t<NR_TASKLETS; t++) {
                 temp_offset[t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
             }
-#endif
+
             DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
             DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
+#endif
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(input+input_offset[dpu_id][0])));
             largest_length = (input_length[dpu_id] > largest_length) ? input_length[dpu_id] : largest_length;
             dpu_id++; 
@@ -220,13 +260,26 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     uint32_t largest_count = 0;
     DPU_RANK_FOREACH(set, dpu_rank, rank_id) {
         // DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
+#ifdef BULK_TRANSFER
+        uint32_t starting_dpu_idx = dpu_id;
+        DPU_FOREACH(dpu_rank, dpu) {
+            DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)(&(output_count[dpu_id]))));
+            dpu_id++;
+        }
+        DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_FROM_DPU, "offset_count", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
+        dpu_id = starting_dpu_idx;
+#endif
+  
         DPU_FOREACH(dpu_rank, dpu)
         {
+#ifdef NORM_TRANSFER
             dpu_copy_from(dpu, "offset_count", 0, &(output_count[dpu_id]), sizeof(uint32_t));
+#endif 
             if ( output_count[dpu_id] > largest_count) {
                 largest_count = output_count[dpu_id];
                 dbg_printf("dpu-host output_count %d\n", largest_count);
             }
+
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)(record_offsets[dpu_id])));
             dpu_id++;
         }
