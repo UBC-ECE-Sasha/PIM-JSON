@@ -22,6 +22,7 @@
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define MASK_BIT(var,pos) ((var) |= (1<<(pos)))
 #define SEQ_READ_CACHE_SIZE 504
+#define SEQ_4_OP1
 
 
 /* global variables */
@@ -38,7 +39,6 @@ __host uint32_t input_offset[NR_TASKLETS];
 __host volatile uint32_t offset_count = 0;
 
 MUTEX_INIT(write_mutex);
-MUTEX_INIT(read_mutex);
 
 /**
  * 
@@ -104,6 +104,8 @@ static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 }
 #endif
 
+
+#ifdef SEQ_4_OP2
 void seqread_get_x(struct in_buffer_context *_i, uint32_t len){
     // 216
     if((_i->seqread_indx+len) > SEQ_READ_CACHE_SIZE) {
@@ -116,8 +118,10 @@ void seqread_get_x(struct in_buffer_context *_i, uint32_t len){
         _i->seqread_indx += len;
     }
 }
+#endif
 
-// #ifdef SEQ_4_OP1
+
+#ifdef SEQ_4_OP1
 static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
     
 
@@ -128,9 +132,9 @@ static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
     _i->ptr = seqread_get(_i->ptr, sizeof(uint32_t), &_i->sr);
     return ret;
 }
-// #endif
+#endif
 
-
+#ifdef SEQ_4_OP2
 static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
     unsigned int ret = _i->ptr[_i->seqread_indx + 0] << 24 |
                   (_i->ptr[_i->seqread_indx + 1] << 16) |
@@ -152,6 +156,8 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
 
     seqread_get_x(_i, len);
 }
+#endif
+
 
 #ifdef SEQ_4_OP1
 static void READ_X_BYTE_4(unsigned int *a, struct in_buffer_context *_i, int len) {
@@ -290,13 +296,7 @@ static void dpu_strstr(struct in_buffer_context *input) {
     uint8_t tasklet_id = me();
 
     unsigned int a = READ_4_BYTE_4(input);
-    printf("tasklet %d reads %x\n", tasklet_id, a);
-    // unsigned int a = input->ptr[0];
-    
-    // READ_X_BYTE_4(&a, input, 2,true);
-    // printf("tasklet %d starting %x %x %x\n",tasklet_id, a, input->ptr[1], input->ptr[2]);
-    // input->ptr = seqread_get(input->ptr, sizeof(uint8_t)*(2), &input->sr);
-    // printf("tasklet %d starting %x %x %x\n",tasklet_id, input->ptr[0], input->ptr[1], input->ptr[2]);
+    dbg_printf("tasklet %d reads %x\n", tasklet_id, a);
 
     uint32_t query_passed_count = 0;
 
@@ -317,12 +317,12 @@ static void dpu_strstr(struct in_buffer_context *input) {
             case 1:
             case 2:
             case 3:
-                READ_X_BYTE_4X(&a, input, next);
+                READ_X_BYTE_4(&a, input, next);
                 input->curr += next;
                 break;
             case 4:
             default: 
-                a = READ_4_BYTE_4X(input);
+                a = READ_4_BYTE_4(input);
                 input->curr +=4;
                 break;
         }
