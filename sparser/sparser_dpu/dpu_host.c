@@ -83,9 +83,7 @@ static bool calculate_offset(char *input, long length, uint64_t input_offset[NR_
             o_end = (dpu_indx+1) * dpu_blocksize;
             r_end = memchr(input+o_end, '\n', length- o_end);
             input_offset[dpu_indx+1][0] = r_end-input +1;
-        #if 1
-            printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
-        #endif
+            dbg_printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
         }
     }
 
@@ -170,13 +168,29 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
     uint32_t temp_offset[NR_TASKLETS] = {0};
     uint8_t rank_id;
     UNUSED(rank_id);
+#ifdef BULK_TRANSFER
+    DPU_RANK_FOREACH(set, dpu_rank) {
+        DPU_ASSERT(dpu_prepare_xfer(dpu_rank, (void*)(keys)));
+    }
+    DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "key_cache", 0, sizeof(unsigned int)*keys_length, DPU_XFER_DEFAULT));
+    
+    DPU_RANK_FOREACH(set, dpu_rank) {
+        DPU_ASSERT(dpu_prepare_xfer(dpu_rank, (void*)(&keys_length)));
+    }
+    DPU_ASSERT(dpu_push_xfer(set, DPU_XFER_TO_DPU, "query_count", 0, sizeof(uint32_t), DPU_XFER_DEFAULT));
 
+#endif  
+    
     DPU_RANK_FOREACH(set, dpu_rank, rank_id)
     {
         // copy data shared among ranks
+        // uint32_t starting_dpu_idx = dpu_id;
+#ifdef NORM_TRANSFER
         DPU_ASSERT(dpu_copy_to(dpu_rank, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
-
+#endif
+        
+        
         uint32_t largest_length = 0;
         DPU_FOREACH(dpu_rank, dpu)
         {
