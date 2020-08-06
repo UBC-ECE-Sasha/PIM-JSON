@@ -52,7 +52,7 @@ WHERE text contains \"aabaa\"";
 const char *DEMO_QUERY5_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"taco\"";
+WHERE text contains \"delicious\" and text contains \"good\"";
 
 const char *DEMO_QUERY6_STR = "\n\
 SELECT count(*)\n\
@@ -107,7 +107,7 @@ json_passed_t demo_q4_text(const char *value, void *) {
 }
 
 json_passed_t demo_q5_text(const char *value, void *) {
-    return strstr(value, "taco") ? JSON_PASS : JSON_FAIL;
+    return strstr(value, "delicious") && strstr(value, "good") ? JSON_PASS : JSON_FAIL;
 }
 
 json_passed_t demo_q6_text(const char *value, void *) {
@@ -137,6 +137,7 @@ json_passed_t demo_q11_text(const char *value, void *) {
 json_passed_t demo_q12_text(const char *value, void *) {
     return strstr(value, XSTR(QUERY)) ? JSON_PASS : JSON_FAIL;
 }
+
 
 json_query_t demo_query1() {
     json_query_t query = json_query_new();
@@ -241,9 +242,10 @@ static const char **sparser_demo_query4(int *count) {
 }
 
 static const char **sparser_demo_query5(int *count) {
-    static const char *_1 = "taco";
-    static const char *predicates[] = {_1, NULL};
-    *count = 1;
+    static const char *_1 = "delicious";
+    static const char *_2 = "good";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
     return predicates;
 }
 
