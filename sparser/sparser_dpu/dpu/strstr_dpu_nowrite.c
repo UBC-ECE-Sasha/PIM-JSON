@@ -11,6 +11,7 @@
 #include <alloc.h>
 #include <built_ins.h>
 #include <defs.h>
+#define SEQREAD_CACHE_SIZE 512
 #include <seqread.h>
 
 #include "strstr_dpu.h"
@@ -20,6 +21,7 @@
 #define MAX_KEY_ARY_LENGTH 8
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define MASK_BIT(var,pos) ((var) |= (1<<(pos)))
+#define SEQ_READ_CACHE_SIZE 504
 
 
 /* global variables */
@@ -84,7 +86,7 @@ static void printRecord(uint8_t* record_start, uint32_t length) {
     printf("\n");
 }
 #endif 
-#ifdef SEQ_4
+#ifdef SEQ_4_NOP
 static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
    unsigned int ret = 0;
    int i =0;
@@ -101,6 +103,18 @@ static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 }
 #endif
 
+void seqread_get_x(struct in_buffer_context *_i, uint32_t len){
+    // 216
+    if(_i->seqread_indx+len > SEQ_READ_CACHE_SIZE) {
+        _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t)*(_i->seqread_indx+len), &_i->sr);
+        _i->seqread_indx = 0;
+    }
+    else {
+        _i->seqread_indx += len;
+    }
+}
+
+#ifdef SEQ_4_OP1
 static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
     
 
@@ -111,16 +125,33 @@ static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
     _i->ptr = seqread_get(_i->ptr, sizeof(uint32_t), &_i->sr);
     return ret;
 }
+#endif
 
-static void READ_X_BYTE_4(unsigned int *a, struct in_buffer_context *_i, int len, bool p) {
-    
 
-    if(p) {
-        for(int k=0;k<len;k++){
-            printf("%x", _i->ptr[k]);
-        }
-        printf("\n");
-    }
+static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
+    unsigned int ret = _i->ptr[_i->seqread_indx + 0] << 24 |
+                  (_i->ptr[_i->seqread_indx + 1] << 16) |
+                  (_i->ptr[_i->seqread_indx + 2] << 8) | 
+                  (_i->ptr[_i->seqread_indx + 3]);
+    seqread_get_x(_i, 4);
+    return ret;
+}
+
+static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int len) {
+    int i = 4-len;
+    int j = 0;
+    *a = *a << (len<<3);
+    do {
+        *a = *a | (_i->ptr[_i->seqread_indx+j]) << (8 *(3-i));
+        i++;
+        j++;
+    } while(i<4);
+
+    seqread_get_x(_i, len);
+}
+
+#ifdef SEQ_4_OP1
+static void READ_X_BYTE_4(unsigned int *a, struct in_buffer_context *_i, int len) {
 
     int i = 4-len;
     int j = 0;
@@ -132,8 +163,9 @@ static void READ_X_BYTE_4(unsigned int *a, struct in_buffer_context *_i, int len
     } while(i<4);
     _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t)*(len), &_i->sr);
 }
+#endif
 
-#ifdef SEQ_4
+#ifdef SEQ_4_NOP
 static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) {
     int i =4-len;
     *a = *a << (len<<3);
@@ -254,7 +286,7 @@ static void dpu_strstr(struct in_buffer_context *input) {
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
 
-    unsigned int a = READ_4_BYTE_4(input);
+    unsigned int a = READ_4_BYTE_4X(input);
     printf("tasklet %d reads %x\n", tasklet_id, a);
     // unsigned int a = input->ptr[0];
     
@@ -282,12 +314,12 @@ static void dpu_strstr(struct in_buffer_context *input) {
             case 1:
             case 2:
             case 3:
-                READ_X_BYTE_4(&a, input, next, false);
+                READ_X_BYTE_4X(&a, input, next);
                 input->curr += next;
                 break;
             case 4:
             default: 
-                a = READ_4_BYTE_4(input);
+                a = READ_4_BYTE_4X(input);
                 input->curr +=4;
                 break;
         }
