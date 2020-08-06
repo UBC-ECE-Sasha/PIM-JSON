@@ -67,22 +67,22 @@ WHERE text contains \"delicious\"";
 const char *DEMO_QUERY8_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"delicious\" AND name contains \"delivery\"";
+WHERE text contains \"delicious\" AND text contains \"delivery\"";
 
 const char *DEMO_QUERY9_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"burgers\" AND name contains \"fries\"";
+WHERE text contains \"burgers\" AND text contains \"fries\"";
 
 const char *DEMO_QUERY10_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"pizza\" AND name contains \"delivery\"";
+WHERE text contains \"pizza\" AND text contains \"delivery\"";
 
 const char *DEMO_QUERY11_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
-WHERE text contains \"delicious\" AND name contains \"steak\"";
+WHERE text contains \"delicious\" AND text contains \"steak\"";
 
 const char *DEMO_QUERY12_STR = "\n\
 SELECT count(*)\n\
