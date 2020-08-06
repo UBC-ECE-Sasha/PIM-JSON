@@ -9,6 +9,7 @@ typedef struct in_buffer_context
     __mram_ptr uint8_t *mram_org;
     uint32_t curr;
 	uint32_t length;
+	uint32_t seqread_indx;
 } in_buffer_context;
 
 // Return values
