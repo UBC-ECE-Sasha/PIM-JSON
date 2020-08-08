@@ -10,13 +10,13 @@ sed -i "6 i QUERY\ ?=\ $5" Makefile
 make clean
 make 
 ./bench $1 5
-sleep 45
+sleep 10
 ./bench $1 6
-sleep 45
+sleep 10
 ./bench $1 8
-sleep 45
+sleep 10
 ./bench $1 9
-sleep 45
+sleep 10
 ./bench $1 10
-sleep 45
+sleep 10
 ./bench $1 11
