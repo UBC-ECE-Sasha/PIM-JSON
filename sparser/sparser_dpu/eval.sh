@@ -11,12 +11,12 @@ make clean
 make 
 ./bench $1 5 >> eval_out.txt
 sleep 10
-./bench $1 6
+./bench $1 6 >> eval_out.txt
 sleep 10
-./bench $1 8
+./bench $1 8 >> eval_out.txt
 sleep 10
-./bench $1 9
+./bench $1 9 >> eval_out.txt
 sleep 10
-./bench $1 10
+./bench $1 10 >> eval_out.txt
 sleep 10
-./bench $1 11
+./bench $1 11 >> eval_out.txt
