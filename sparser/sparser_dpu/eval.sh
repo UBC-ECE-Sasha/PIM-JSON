@@ -9,7 +9,7 @@ sed -i '6d' Makefile
 sed -i "6 i QUERY\ ?=\ $5" Makefile
 make clean
 make 
-./bench $1 5
+./bench $1 5 >> eval_out.txt
 sleep 10
 ./bench $1 6
 sleep 10
