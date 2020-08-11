@@ -23,8 +23,8 @@
 #define ALIGN(_p, _width) (((unsigned int)_p + (_width-1)) & (0-_width))
 #define ALIGN_LONG(_p, _width) (((long)_p + (_width-1)) & (0-_width))
 #define HOST_DEBUG 0
-#define BULK_TRANSFER
-
+// #define BULK_TRANSFER
+#define NORM_TRANSFER
 /**
  * 
  * Utility functions 
@@ -188,10 +188,12 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
 #ifdef NORM_TRANSFER
         DPU_ASSERT(dpu_copy_to(dpu_rank, "key_cache", 0, keys, sizeof(unsigned int)*keys_length));
         DPU_ASSERT(dpu_copy_to(dpu_rank, "query_count", 0, &keys_length, sizeof(uint32_t)));
+        uint32_t dpu_mram_buffer_start = 1024 * 1024;
 #endif    
+
+#ifdef BULK_TRANSFER
         uint32_t largest_length = 0;
         uint32_t starting_dpu_idx = dpu_id;
-#ifdef BULK_TRANSFER
         DPU_FOREACH(dpu_rank, dpu)
         {
             for (int t=0; t<NR_TASKLETS; t++) {
@@ -218,20 +220,27 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
 
         DPU_FOREACH(dpu_rank, dpu)
         {
-#if NORM_TRANSFER
-            // input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
+#ifdef NORM_TRANSFER
+            input_length[dpu_id] = ALIGN(input_length[dpu_id], 8);
             for (int t=0; t<NR_TASKLETS; t++) {
-                temp_offset[t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
+                temp_offset[dpu_id][t] = t ==0 ? 0 :  (uint32_t)(input_offset[dpu_id][t]);
             }
-
+            DPU_ASSERT(dpu_copy_to(dpu, XSTR(DPU_BUFFER), 0, &dpu_mram_buffer_start, sizeof(uint32_t)));
             DPU_ASSERT(dpu_copy_to(dpu, "input_offset", 0, temp_offset, sizeof(uint32_t) * NR_TASKLETS));
             DPU_ASSERT(dpu_copy_to(dpu, "input_length", 0, &(input_length[dpu_id]), sizeof(uint32_t)));
+            DPU_ASSERT(dpu_copy_to_mram(dpu.dpu, dpu_mram_buffer_start, (unsigned char*)input+input_offset[dpu_id][0], input_length[dpu_id]));
 #endif
+
+#ifdef BULK_TRANSFER
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void*)(input+input_offset[dpu_id][0])));
             largest_length = (input_length[dpu_id] > largest_length) ? input_length[dpu_id] : largest_length;
-            dpu_id++; 
+#endif
+            dpu_id++;
         }
+#ifdef BULK_TRANSFER
         DPU_ASSERT(dpu_push_xfer(dpu_rank, DPU_XFER_TO_DPU, "dpu_mram_buffer", 0, ALIGN(largest_length, 8), DPU_XFER_DEFAULT));
+#endif
+
     }
 
     
@@ -275,12 +284,16 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
 #ifdef NORM_TRANSFER
             dpu_copy_from(dpu, "offset_count", 0, &(output_count[dpu_id]), sizeof(uint32_t));
 #endif 
+#ifdef BULK_TRANSFER
             if ( output_count[dpu_id] > largest_count) {
                 largest_count = output_count[dpu_id];
                 dbg_printf("dpu-host output_count %d\n", largest_count);
             }
-
             DPU_ASSERT(dpu_prepare_xfer(dpu, (void *)(record_offsets[dpu_id])));
+#endif
+#ifdef NORM_TRANSFER
+            DPU_ASSERT(dpu_copy_from(dpu, "candidates", 0, &(record_offsets[dpu_id]), sizeof(struct json_candidate) * ALIGN(output_count[dpu_id], 8)));
+#endif
             dpu_id++;
         }
 
