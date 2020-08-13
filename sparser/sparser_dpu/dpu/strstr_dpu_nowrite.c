@@ -38,6 +38,7 @@ uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(58)];
 __mram_noinit struct json_candidate candidates[MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
 __host volatile uint32_t offset_count = 0;
+static uint32_t p_f =0;
 
 MUTEX_INIT(write_mutex);
 
@@ -124,16 +125,16 @@ void seqread_get_x(struct in_buffer_context *_i){
         _i->seqread_indx += len;
     }
 #endif
-    if(_i->seq_cnt+(S_BUFFER_LENGTH-1) > _i->length) {
+    if(_i->curr+(S_BUFFER_LENGTH-1) > _i->length) {
         // read left bytes
         
-        _i->ptr = seqread_get(_i->ptr, _i->length-_i->seq_cnt, &_i->sr);
-        _i->seq_cnt = _i->length;
+        _i->ptr = seqread_get(_i->ptr, _i->length-_i->curr, &_i->sr);
+        // _i->seq_cnt = _i->length;
         // printf("tasklet %d check 1\n", me());
     }
     else {
         _i->ptr = seqread_get(_i->ptr, S_BUFFER_LENGTH-1, &_i->sr);
-        _i->seq_cnt +=(S_BUFFER_LENGTH-1);
+        // _i->seq_cnt +=(S_BUFFER_LENGTH-1);
         // printf("tasklet %d seq count %u length %u curr%u\n", me(), _i->seq_cnt, _i->length, _i->curr);
     }
     _i->seqread_indx =0;
@@ -213,12 +214,14 @@ static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
         }
         seqread_get_x(_i); // cache reload
         for (uint32_t k=0; k<temp; k++) {
-            ret |= _i->ptr[_i->seqread_indx + i] << ((3-i)<<3);
+            ret |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
             i++;
         }
         _i->seqread_indx += temp;
         // printf("READ_4_BYTE_4X cache reload---- %x\n",ret);
-        // printf("tasklet %d READ_4_BYTE_4X load_pre %u temp %u  %x prev %x\n", me(),load_pre, temp, ret, prev_val);
+        if(p_f == 1 && me() == 1) {
+            printf("tasklet %d READ_4_BYTE_4X load_pre %u temp %u  %x prev %x\n", me(),load_pre, temp, ret, prev_val);
+        }
 
         
     }
@@ -231,7 +234,10 @@ static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
                     (_i->ptr[_i->seqread_indx + 3]);
         _i->seqread_indx += 4;
         prev_val = ret;
-        // printf("READ_4_BYTE_4X read 4 bytes %x\n",ret);
+        if(p_f ==1 && me() ==1) {
+            printf("tasklet %d READ_4_BYTE_4X read 4 bytes %x\n",me(), ret);
+        }
+        // 
     }   
     return ret;
 }
@@ -273,7 +279,9 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
             i++;
         }        
         _i->seqread_indx += temp;
-        // printf("tasklet %d READ_X_BYTE_4X load_pre %u temp %u read %d bytes %x prev %x\n",me(),load_pre, temp, len,*a, prev_val);
+        if(p_f ==1 && me() ==1) {
+        printf("tasklet %d READ_X_BYTE_4X load_pre %u temp %u read %d bytes %x prev %x\n",me(),load_pre, temp, len,*a, prev_val);
+        }
     }
     else {
         do {
@@ -283,7 +291,12 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
         } while(i<4);
         _i->seqread_indx += len;
         prev_val = *a;
-        // printf("READ_X_BYTE_4X read %d bytes %x\n",len,*a);
+        #if 0
+        if(p_f == 1 && me() == 1){
+        printf("tasklet %d READ_X_BYTE_4X read %d bytes %x\n",me(),len,*a);
+        }
+        #endif
+
     }
 
 }
@@ -362,12 +375,15 @@ static bool CHECK_4_BYTE(unsigned int a, int *kth_byte) {
 ****************************************************************************************************/
 static void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, struct record_descrip* rec, int * next, uint32_t query_passed_count, uint8_t tasklet_id) {
     int kth_byte = 0;
+    // uint32_t p_f = 1;
     
     if(CHECK_4_BYTE(a, &kth_byte)) {
         // finish reading a record                
         rec->length = input->curr - rec->org + kth_byte+1;//-(4-kth_byte-1);
-        dbg_printf("record length %d curr %d org %d kth_byte%d \n", rec->length, input->curr, rec->org, kth_byte);
-
+        // printf("tasklet %d record length %d curr %d org %d kth_byte%d \n", me(), rec->length, input->curr, rec->org, kth_byte);
+        if(rec->record_start - input->mram_org + input_offset[tasklet_id] == 236931) {
+            printf("me %d ---------record found-------- q_c %d %d\n", me(), query_passed_count, rec->length);
+        }
         if(query_passed_count >= query_count) {
             mutex_lock(write_mutex);
             candidates[offset_count].length = rec->length;
@@ -376,15 +392,27 @@ static void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, st
             mutex_unlock(write_mutex);  
             // RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
             // RECORDS_LENS[offset_count] = rec->length;   
-            dbg_printf("records found %u count %u\n", rec.record_start - input->mram_org, offset_count);
+            dbg_printf("tasklet %d records found %u count %u\n", me(),rec->record_start - input->mram_org + input_offset[tasklet_id], offset_count);
         }
 
         // reset
+        #if 0
+        if(tasklet_id ==1){
+            if(rec->length == 765){
+                printf("YYYYYYYYYYYYY\n");
+                p_f = 1;
+            }
+            else {
+                p_f =0;
+            }
+        }
+        #endif
         rec->record_start += (rec->length);
         rec->org += rec->length;
         rec->length = 0;
         rec->str_mask = 0;
         *next = (kth_byte+1);
+
     }
 }
 
@@ -404,8 +432,10 @@ static void dpu_strstr(struct in_buffer_context *input) {
 
     uint32_t query_passed_count = 0;
 
+
     do { 
         // check how many queries have passed
+
         __builtin_cao_rr(query_passed_count, rec.str_mask);
         // check if queries exist in the current 4 bytes
         if ((query_passed_count < query_count) && STRSTR_4_BYTE_OP(a, &next, &rec)) {
@@ -434,7 +464,7 @@ static void dpu_strstr(struct in_buffer_context *input) {
     //     break;
     // }
     } while(input->curr < input->length|| input->curr+4 < input->length);
-    // printf("strstr tasklet %d seq count %u length %u curr%u\n", me(), input->seq_cnt, input->length, input->curr);
+    dbg_printf("strstr tasklet %d length %u curr%u\n", me(), input->length, input->curr);
 
     // stop for seq_cnt + read_size > input->length
 }
@@ -459,7 +489,7 @@ int main()
     input.curr = 0;
 	input.length = 0;
     input.seqread_indx = 0;
-    input.seq_cnt = (S_BUFFER_LENGTH-1);
+    // input.seq_cnt = (S_BUFFER_LENGTH-1);
 
 
     // input.s_ptr = (uint8_t*)ALIGN(mem_alloc(S_BUFFER_LENGTH), 8);
