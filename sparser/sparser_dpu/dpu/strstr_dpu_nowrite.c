@@ -31,6 +31,7 @@ __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
 __host uint32_t query_count = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
+unsigned int key_char[MAX_KEY_ARY_LENGTH];
 uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(58)];
 // __mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
 // __mram_noinit uint32_t RECORDS_LENS[MAX_NUM_RETURNS] = {0};
@@ -200,7 +201,8 @@ static bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* r
         else{
             // normal process
             // if true mask the bit correspand ot the key_cache
-            shift_same(key_cache[i]>>24, &b);
+            // shift_same(key_cache[i]>>24, &b);
+            b = key_char[i];
             __builtin_cmpb4_rrr(res, a, b);
             *next = find_next_set_bit(res);
             if(*next < min_next) {
@@ -348,6 +350,10 @@ int main()
     input.ptr = seqread_init(input.cache, input.mram_org, &input.sr);
     input.curr = 0;
 	input.length = 0;
+
+    for (uint32_t i = 0; i < query_count; i++) {
+        shift_same(key_cache[i]>>24, &key_char[i]);
+    }
 
 	// Calculate the actual length this tasklet parses
 	if (idx < (NR_TASKLETS - 1)) {
