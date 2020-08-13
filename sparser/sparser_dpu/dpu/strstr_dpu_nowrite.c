@@ -11,7 +11,7 @@
 #include <alloc.h>
 #include <built_ins.h>
 #include <defs.h>
-#define SEQREAD_CACHE_SIZE 512
+#define SEQREAD_CACHE_SIZE S_BUFFER_LENGTH
 #include <seqread.h>
 
 #include "strstr_dpu.h"
@@ -21,8 +21,8 @@
 #define MAX_KEY_ARY_LENGTH 8
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define MASK_BIT(var,pos) ((var) |= (1<<(pos)))
-#define SEQ_READ_CACHE_SIZE 504
-#define SEQ_4_OP1
+// #define SEQ_READ_CACHE_SIZE 504
+#define SEQ_4_OP2
 
 
 /* global variables */
@@ -107,17 +107,34 @@ static unsigned int READ_4_BYTE(struct in_buffer_context *_i) {
 
 
 #ifdef SEQ_4_OP2
-void seqread_get_x(struct in_buffer_context *_i, uint32_t len){
+void seqread_get_x(struct in_buffer_context *_i){
     // 216
-    if((_i->seqread_indx+len) > SEQ_READ_CACHE_SIZE) {
-        mutex_lock(read_mutex);
-        _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t)*(_i->seqread_indx+len), &_i->sr);
-        _i->seqread_indx = 0;
-        mutex_unlock(read_mutex);
+#if 0
+    if((_i->seqread_indx+len) > (S_BUFFER_LENGTH-1)) {
+        // mutex_lock(read_mutex);
+        // _i->ptr = seqread_get(_i->ptr, sizeof(uint8_t)*(_i->seqread_indx+len), &_i->sr);
+        // _i->seqread_indx = 0;
+        // mutex_unlock(read_mutex);
+        memcpy(input.s_ptr, input->ptr, S_BUFFER_LENGTH-1);
+        uint32_t temp = _i->seqread_indx+len - (S_BUFFER_LENGTH-1);
+        input->ptr = seqread_get(input->ptr, S_BUFFER_LENGTH-1, &input->sr);
+        _i->seqread_indx += temp;
     }
     else {
         _i->seqread_indx += len;
     }
+#endif
+    if(_i->seq_cnt+(S_BUFFER_LENGTH-1) > _i->length) {
+        // read left bytes
+        
+        _i->ptr = seqread_get(_i->ptr, _i->length-_i->seq_cnt, &_i->sr);
+        _i->seq_cnt = _i->length;
+    }
+    else {
+        _i->ptr = seqread_get(_i->ptr, S_BUFFER_LENGTH-1, &_i->sr);
+        _i->seq_cnt +=(S_BUFFER_LENGTH-1);
+    }
+    _i->seqread_indx =0;
 }
 #endif
 
@@ -132,30 +149,6 @@ static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
                   (_i->ptr[3]);
     _i->ptr = seqread_get(_i->ptr, sizeof(uint32_t), &_i->sr);
     return ret;
-}
-#endif
-
-#ifdef SEQ_4_OP2
-static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
-    unsigned int ret = _i->ptr[_i->seqread_indx + 0] << 24 |
-                  (_i->ptr[_i->seqread_indx + 1] << 16) |
-                  (_i->ptr[_i->seqread_indx + 2] << 8) | 
-                  (_i->ptr[_i->seqread_indx + 3]);
-    seqread_get_x(_i, 4);
-    return ret;
-}
-
-static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int len) {
-    int i = 4-len;
-    int j = 0;
-    *a = *a << (len<<3);
-    do {
-        *a = *a | (_i->ptr[_i->seqread_indx+j]) << (8 *(3-i));
-        i++;
-        j++;
-    } while(i<4);
-
-    seqread_get_x(_i, len);
 }
 #endif
 
@@ -187,6 +180,70 @@ static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) 
    } while(i<4);
 }
 #endif
+
+#ifdef SEQ_4_OP2
+static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
+    unsigned int ret = 0;
+
+    if(_i->seqread_indx +4 > S_BUFFER_LENGTH -1) {
+        // need to copy in bytes I need then reload cache
+        uint32_t temp = (_i->seqread_indx +4) - (S_BUFFER_LENGTH -1);
+        uint32_t i =0;
+        uint32_t load_pre = 4 - temp;
+        for (i=0; i< load_pre; i++) {
+            ret |= _i->ptr[_i->seqread_indx + i] << ((3-i)<<3);
+        }
+        seqread_get_x(_i);
+        for (; i< 4; i++) {
+            ret |= _i->ptr[_i->seqread_indx + i] << ((3-i)<<3);
+        }        
+        _i->seqread_indx += temp;
+    }
+    else {
+        // do the normal thing
+        // increment counter
+        ret = _i->ptr[_i->seqread_indx + 0] << 24 |
+                    (_i->ptr[_i->seqread_indx + 1] << 16) |
+                    (_i->ptr[_i->seqread_indx + 2] << 8) | 
+                    (_i->ptr[_i->seqread_indx + 3]);
+        _i->seqread_indx += 4;
+        
+    }
+    return ret;
+}
+
+static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int len) {
+    int i = 4-len;
+    int j = 0;
+    *a = *a << (len<<3);
+    uint32_t k =0;
+
+    if(_i->seqread_indx +len > S_BUFFER_LENGTH -1) {
+        uint32_t temp = (_i->seqread_indx +len) - (S_BUFFER_LENGTH -1);
+        // _i->seqread_indx += (_i->seqread_indx +len) - (S_BUFFER_LENGTH -1);
+        uint32_t load_pre = len - temp;
+        for (k=0; k< load_pre; k++) {
+            *a |= _i->ptr[_i->seqread_indx + k] << ((3-k)<<3);
+        }
+        seqread_get_x(_i);
+        for (; k< 4; k++) {
+            *a |= _i->ptr[_i->seqread_indx + k] << ((3-k)<<3);
+        }        
+        _i->seqread_indx += temp;
+
+    }
+    else {
+        do {
+            *a = *a | (_i->ptr[_i->seqread_indx+j]) << (8 *(3-i));
+            i++;
+            j++;
+        } while(i<4);
+        _i->seqread_indx += j;
+    }
+
+}
+#endif
+
 
 static bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* rec){
     unsigned int res = 0;
@@ -297,7 +354,7 @@ static void dpu_strstr(struct in_buffer_context *input) {
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
 
-    unsigned int a = READ_4_BYTE_4(input);
+    unsigned int a = READ_4_BYTE_4X(input);
     dbg_printf("tasklet %d reads %x\n", tasklet_id, a);
 
     uint32_t query_passed_count = 0;
@@ -319,16 +376,17 @@ static void dpu_strstr(struct in_buffer_context *input) {
             case 1:
             case 2:
             case 3:
-                READ_X_BYTE_4(&a, input, next);
+                READ_X_BYTE_4X(&a, input, next);
                 input->curr += next;
                 break;
             case 4:
             default: 
-                a = READ_4_BYTE_4(input);
+                a = READ_4_BYTE_4X(input);
                 input->curr +=4;
                 break;
         }
     } while(input->curr < input->length|| input->curr+4 < input->length);
+    // stop for seq_cnt + read_size > input->length
 }
 
 
@@ -350,6 +408,15 @@ int main()
     input.ptr = seqread_init(input.cache, input.mram_org, &input.sr);
     input.curr = 0;
 	input.length = 0;
+    input.seqread_indx = 0;
+    input.seq_cnt = 0;
+
+
+    // input.s_ptr = (uint8_t*)ALIGN(mem_alloc(S_BUFFER_LENGTH), 8);
+    // memcpy(input.s_ptr, input->ptr, S_BUFFER_LENGTH-1);
+    // input->ptr = seqread_get(input->ptr, S_BUFFER_LENGTH-1, &input->sr);
+
+    // advance seq_cnt by S_BUFFER_LENGTH-1
 
     for (uint32_t i = 0; i < query_count; i++) {
         shift_same(key_cache[i]>>24, &key_char[i]);
