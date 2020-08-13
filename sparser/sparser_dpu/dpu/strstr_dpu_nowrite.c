@@ -127,7 +127,7 @@ void seqread_get_x(struct in_buffer_context *_i){
     if(_i->seq_cnt+(S_BUFFER_LENGTH-1) > _i->length) {
         // read left bytes
         
-        _i->ptr = seqread_get(_i->ptr, _i->length-_i->seq_cnt, &_i->sr);
+        _i->ptr = seqread_get(_i->ptr, _i->length-_i->seq_cnt+1, &_i->sr);
         _i->seq_cnt = _i->length;
     }
     else {
@@ -223,11 +223,13 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
         // _i->seqread_indx += (_i->seqread_indx +len) - (S_BUFFER_LENGTH -1);
         uint32_t load_pre = len - temp;
         for (k=0; k< load_pre; k++) {
-            *a |= _i->ptr[_i->seqread_indx + k] << ((3-k)<<3);
+            *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
+            i++;
         }
         seqread_get_x(_i);
         for (; k< 4; k++) {
-            *a |= _i->ptr[_i->seqread_indx + k] << ((3-k)<<3);
+            *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
+            i++;
         }        
         _i->seqread_indx += temp;
 
