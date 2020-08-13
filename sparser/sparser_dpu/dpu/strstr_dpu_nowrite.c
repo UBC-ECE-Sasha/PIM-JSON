@@ -227,7 +227,7 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
             i++;
         }
         seqread_get_x(_i);
-        for (; k< 4; k++) {
+        for (; k< temp; k++) {
             *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
             i++;
         }        
