@@ -127,12 +127,14 @@ void seqread_get_x(struct in_buffer_context *_i){
     if(_i->seq_cnt+(S_BUFFER_LENGTH-1) > _i->length) {
         // read left bytes
         
-        _i->ptr = seqread_get(_i->ptr, _i->length-_i->seq_cnt+1, &_i->sr);
+        _i->ptr = seqread_get(_i->ptr, _i->length-_i->seq_cnt, &_i->sr);
         _i->seq_cnt = _i->length;
+        // printf("tasklet %d check 1\n", me());
     }
     else {
         _i->ptr = seqread_get(_i->ptr, S_BUFFER_LENGTH-1, &_i->sr);
         _i->seq_cnt +=(S_BUFFER_LENGTH-1);
+        // printf("tasklet %d seq count %u length %u curr%u\n", me(), _i->seq_cnt, _i->length, _i->curr);
     }
     _i->seqread_indx =0;
 }
@@ -184,9 +186,11 @@ static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) 
 #ifdef SEQ_4_OP2
 static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
     unsigned int ret = 0;
+    static unsigned int prev_val = 0;
 
     if(_i->seqread_indx +4 > S_BUFFER_LENGTH -1) {
         // need to copy in bytes I need then reload cache
+        # if 0
         uint32_t temp = (_i->seqread_indx +4) - (S_BUFFER_LENGTH -1);
         uint32_t i =0;
         uint32_t load_pre = 4 - temp;
@@ -198,6 +202,25 @@ static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
             ret |= _i->ptr[_i->seqread_indx + i] << ((3-i)<<3);
         }        
         _i->seqread_indx += temp;
+        #endif
+        uint32_t temp = (_i->seqread_indx +4) - (S_BUFFER_LENGTH -1); // bytes to read after cache reload
+        uint32_t load_pre = 4 - temp; //bytes to read afterwards
+        uint32_t i =0;
+        if(load_pre != 0) {
+            for (i=0; i< load_pre; i++) {
+                ret |= _i->ptr[_i->seqread_indx + i] << ((3-i)<<3);
+            }
+        }
+        seqread_get_x(_i); // cache reload
+        for (uint32_t k=0; k<temp; k++) {
+            ret |= _i->ptr[_i->seqread_indx + i] << ((3-i)<<3);
+            i++;
+        }
+        _i->seqread_indx += temp;
+        // printf("READ_4_BYTE_4X cache reload---- %x\n",ret);
+        // printf("tasklet %d READ_4_BYTE_4X load_pre %u temp %u  %x prev %x\n", me(),load_pre, temp, ret, prev_val);
+
+        
     }
     else {
         // do the normal thing
@@ -207,8 +230,9 @@ static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
                     (_i->ptr[_i->seqread_indx + 2] << 8) | 
                     (_i->ptr[_i->seqread_indx + 3]);
         _i->seqread_indx += 4;
-        
-    }
+        prev_val = ret;
+        // printf("READ_4_BYTE_4X read 4 bytes %x\n",ret);
+    }   
     return ret;
 }
 
@@ -216,9 +240,10 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
     int i = 4-len;
     int j = 0;
     *a = *a << (len<<3);
-    uint32_t k =0;
+    static unsigned int prev_val = 0;
 
     if(_i->seqread_indx +len > S_BUFFER_LENGTH -1) {
+#if 0
         uint32_t temp = (_i->seqread_indx +len) - (S_BUFFER_LENGTH -1);
         // _i->seqread_indx += (_i->seqread_indx +len) - (S_BUFFER_LENGTH -1);
         uint32_t load_pre = len - temp;
@@ -227,12 +252,28 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
             i++;
         }
         seqread_get_x(_i);
-        for (; k< temp; k++) {
+        for (; k< len; k++) {
             *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
             i++;
         }        
         _i->seqread_indx += temp;
-
+#endif  
+        uint32_t temp = (_i->seqread_indx +len) - (S_BUFFER_LENGTH -1);
+        uint32_t load_pre = len - temp;
+        uint32_t k =0;
+        if(load_pre != 0) {
+            for (k=0; k< load_pre; k++) {
+                *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
+                i++;
+            }            
+        }
+        seqread_get_x(_i);
+        for (k=0; k< temp; k++) {
+            *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
+            i++;
+        }        
+        _i->seqread_indx += temp;
+        // printf("tasklet %d READ_X_BYTE_4X load_pre %u temp %u read %d bytes %x prev %x\n",me(),load_pre, temp, len,*a, prev_val);
     }
     else {
         do {
@@ -240,7 +281,9 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
             i++;
             j++;
         } while(i<4);
-        _i->seqread_indx += j;
+        _i->seqread_indx += len;
+        prev_val = *a;
+        // printf("READ_X_BYTE_4X read %d bytes %x\n",len,*a);
     }
 
 }
@@ -387,7 +430,12 @@ static void dpu_strstr(struct in_buffer_context *input) {
                 input->curr +=4;
                 break;
         }
+    // if(input->curr > 280) {
+    //     break;
+    // }
     } while(input->curr < input->length|| input->curr+4 < input->length);
+    // printf("strstr tasklet %d seq count %u length %u curr%u\n", me(), input->seq_cnt, input->length, input->curr);
+
     // stop for seq_cnt + read_size > input->length
 }
 
@@ -411,7 +459,7 @@ int main()
     input.curr = 0;
 	input.length = 0;
     input.seqread_indx = 0;
-    input.seq_cnt = 0;
+    input.seq_cnt = (S_BUFFER_LENGTH-1);
 
 
     // input.s_ptr = (uint8_t*)ALIGN(mem_alloc(S_BUFFER_LENGTH), 8);
