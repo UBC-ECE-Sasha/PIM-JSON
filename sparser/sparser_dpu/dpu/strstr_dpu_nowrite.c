@@ -31,7 +31,7 @@ __host uint32_t output_length = 0;
 __host uint32_t adjust_offset = 0;
 __host uint32_t query_count = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
-uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(56)];
+uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(58)];
 // __mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
 // __mram_noinit uint32_t RECORDS_LENS[MAX_NUM_RETURNS] = {0};
 __mram_noinit struct json_candidate candidates[MAX_NUM_RETURNS] = {0};
@@ -358,10 +358,10 @@ int main()
         dbg_printf("input_start: %u length: %u\n", input_start, input_length);
 	}
 #if 1    
-    perfcounter_config(COUNT_CYCLES, true);
+    perfcounter_config(COUNT_INSTRUCTIONS, true);
     if (input.length != 0) {
 		dpu_strstr(&input);
-        dbg_printf("Tasklet %d: found searched pattern %lu\n", idx, perfcounter_get());
+                printf("Tasklet %d: found searched pattern %lu %d bytes\n", idx, perfcounter_get(), input_length);
 	}
 #endif
     return 0;
