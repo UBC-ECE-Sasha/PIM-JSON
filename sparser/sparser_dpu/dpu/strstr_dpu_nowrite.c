@@ -125,16 +125,18 @@ void seqread_get_x(struct in_buffer_context *_i){
         _i->seqread_indx += len;
     }
 #endif
-    if(_i->curr+(S_BUFFER_LENGTH-1) > _i->length) {
+    if(_i->seq_cnt+(S_BUFFER_LENGTH-1) > _i->length) {
         // read left bytes
         
-        _i->ptr = seqread_get(_i->ptr, _i->length-_i->curr, &_i->sr);
-        // _i->seq_cnt = _i->length;
-        // printf("tasklet %d check 1\n", me());
+        _i->ptr = seqread_get(_i->ptr, _i->length-_i->seq_cnt, &_i->sr);
+        _i->seq_cnt = _i->length;
+        if(me() == 0 && p_f == 1) {
+            printf("tasklet %d check 1 curr %d seq_cnt %d\n", me(), _i->length-_i->curr, _i->seq_cnt);
+        }
     }
     else {
         _i->ptr = seqread_get(_i->ptr, S_BUFFER_LENGTH-1, &_i->sr);
-        // _i->seq_cnt +=(S_BUFFER_LENGTH-1);
+        _i->seq_cnt +=(S_BUFFER_LENGTH-1);
         // printf("tasklet %d seq count %u length %u curr%u\n", me(), _i->seq_cnt, _i->length, _i->curr);
     }
     _i->seqread_indx =0;
@@ -219,7 +221,7 @@ static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
         }
         _i->seqread_indx += temp;
         // printf("READ_4_BYTE_4X cache reload---- %x\n",ret);
-        if(p_f == 1 && me() == 1) {
+        if(p_f == 1 && me() == 0) {
             printf("tasklet %d READ_4_BYTE_4X load_pre %u temp %u  %x prev %x\n", me(),load_pre, temp, ret, prev_val);
         }
 
@@ -234,7 +236,7 @@ static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
                     (_i->ptr[_i->seqread_indx + 3]);
         _i->seqread_indx += 4;
         prev_val = ret;
-        if(p_f ==1 && me() ==1) {
+        if(p_f ==1 && me() ==0) {
             printf("tasklet %d READ_4_BYTE_4X read 4 bytes %x\n",me(), ret);
         }
         // 
@@ -279,7 +281,7 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
             i++;
         }        
         _i->seqread_indx += temp;
-        if(p_f ==1 && me() ==1) {
+        if(p_f ==1 && me() ==0) {
         printf("tasklet %d READ_X_BYTE_4X load_pre %u temp %u read %d bytes %x prev %x\n",me(),load_pre, temp, len,*a, prev_val);
         }
     }
@@ -291,8 +293,8 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
         } while(i<4);
         _i->seqread_indx += len;
         prev_val = *a;
-        #if 0
-        if(p_f == 1 && me() == 1){
+        #if 1
+        if(p_f == 1 && me() == 0){
         printf("tasklet %d READ_X_BYTE_4X read %d bytes %x\n",me(),len,*a);
         }
         #endif
@@ -381,8 +383,12 @@ static void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, st
         // finish reading a record                
         rec->length = input->curr - rec->org + kth_byte+1;//-(4-kth_byte-1);
         // printf("tasklet %d record length %d curr %d org %d kth_byte%d \n", me(), rec->length, input->curr, rec->org, kth_byte);
-        if(rec->record_start - input->mram_org + input_offset[tasklet_id] == 236931) {
+        // magic number 236931 -> 
+         if(rec->record_start - input->mram_org + input_offset[tasklet_id] == 72110) {
             printf("me %d ---------record found-------- q_c %d %d\n", me(), query_passed_count, rec->length);
+        }
+        if(rec->length == 1767) {
+            printf("tasklet %d--------found record ends------------- q_c %d offset %d\n", me(),query_passed_count, rec->record_start - input->mram_org + input_offset[tasklet_id]);
         }
         if(query_passed_count >= query_count) {
             mutex_lock(write_mutex);
@@ -392,13 +398,13 @@ static void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, st
             mutex_unlock(write_mutex);  
             // RECORDS_OFFSETS[offset_count++] = rec.record_start - input->mram_org + input_offset[tasklet_id];
             // RECORDS_LENS[offset_count] = rec->length;   
-            dbg_printf("tasklet %d records found %u count %u\n", me(),rec->record_start - input->mram_org + input_offset[tasklet_id], offset_count);
+            printf("tasklet %d records found %u count %u\n", me(),rec->record_start - input->mram_org + input_offset[tasklet_id], offset_count);
         }
 
         // reset
-        #if 0
-        if(tasklet_id ==1){
-            if(rec->length == 765){
+        #if 1
+        if(tasklet_id ==0){
+            if(rec->length == 1767){
                 printf("YYYYYYYYYYYYY\n");
                 p_f = 1;
             }
@@ -413,6 +419,9 @@ static void CHECK_RECORD_END(unsigned int a, struct in_buffer_context *input, st
         rec->str_mask = 0;
         *next = (kth_byte+1);
 
+    }
+    if(p_f == 1 && me() ==0) {
+        // printf("Check end failed\n");
     }
 }
 
@@ -489,7 +498,7 @@ int main()
     input.curr = 0;
 	input.length = 0;
     input.seqread_indx = 0;
-    // input.seq_cnt = (S_BUFFER_LENGTH-1);
+    input.seq_cnt = 0; // (S_BUFFER_LENGTH-1);
 
 
     // input.s_ptr = (uint8_t*)ALIGN(mem_alloc(S_BUFFER_LENGTH), 8);

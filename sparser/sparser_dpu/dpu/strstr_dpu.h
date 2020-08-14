@@ -10,7 +10,7 @@ typedef struct in_buffer_context
     uint32_t curr;
 	uint32_t length;
 	uint32_t seqread_indx;
-//	uint32_t seq_cnt;
+	uint32_t seq_cnt;
 } in_buffer_context;
 
 // Return values
