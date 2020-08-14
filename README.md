@@ -5,17 +5,12 @@ JSON to binary conversion in memory
 This is integrating the dpu implementation of strstr to the existing sparser code base  
 RapidJson is used for the host to do actual parsing  
 
-To run the original sparser code:  
-cd json/
-git clone https://github.com/Tencent/rapidjson.git
-cd demo-repl/  
-make  
-./bench ${json file name}  
 
 To run the code integrating with DPU:  
-cd dpu-demo/  
+Checkout the submodules included in the repo
+cd sparser/sparser_dpu/
 make clean; make  
-./bench ${json file name}
+./bench ${json file name} ${Query number}
 
 A evaluation script is used for modifing number of DPUs and number of tasklets
 To test the code on the hardware, don't forget to set the $SIMULATOR flag in the makefile to 0
