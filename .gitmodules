@@ -1,0 +1,3 @@
+[submodule "sparser/json/rapidjson"]
+	path = sparser/json/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
