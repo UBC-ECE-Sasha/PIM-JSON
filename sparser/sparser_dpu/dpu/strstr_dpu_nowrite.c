@@ -166,22 +166,35 @@ static void READ_X_BYTE(unsigned int *a, struct in_buffer_context *_i, int len) 
 static unsigned int READ_4_BYTE_4X(struct in_buffer_context *_i) {
     unsigned int ret = 0;
 
+
+
     if(_i->seqread_indx +4 > S_BUFFER_LENGTH -1) {
         // need to copy in bytes I need then reload cache
         uint32_t temp = (_i->seqread_indx +4) - (S_BUFFER_LENGTH -1); // bytes to read after cache reload
         uint32_t load_pre = 4 - temp; //bytes to read afterwards
         uint32_t i =0;
-        if(load_pre != 0) {
-            for (i=0; i< load_pre; i++) {
+
+        for (i=0; i< load_pre; i++) {
                 ret |= _i->ptr[_i->seqread_indx + i] << ((3-i)<<3);
-            }
         }
+
         seqread_get_x(_i); // cache reload
-        for (uint32_t k=0; k<temp; k++) {
-            ret |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
-            i++;
+        if(temp == 4) {
+            ret = _i->ptr[_i->seqread_indx + 0] << 24 |
+                        (_i->ptr[_i->seqread_indx + 1] << 16) |
+                        (_i->ptr[_i->seqread_indx + 2] << 8) | 
+                        (_i->ptr[_i->seqread_indx + 3]);
+            _i->seqread_indx += 4;            
         }
-        _i->seqread_indx += temp;
+        else {
+            for (uint32_t k=0; k<temp; k++) {
+    #if 1
+                ret |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
+                i++;
+    #endif
+            }
+            _i->seqread_indx += temp;
+        }
     }
     else {
         // do the normal thing
@@ -204,12 +217,12 @@ static void READ_X_BYTE_4X(unsigned int *a, struct in_buffer_context *_i, int le
         uint32_t temp = (_i->seqread_indx +len) - (S_BUFFER_LENGTH -1);
         uint32_t load_pre = len - temp;
         uint32_t k =0;
-        if(load_pre != 0) {
-            for (k=0; k< load_pre; k++) {
-                *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
-                i++;
-            }            
-        }
+
+        for (k=0; k< load_pre; k++) {
+            *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
+            i++;
+        }            
+        
         seqread_get_x(_i);
         for (k=0; k< temp; k++) {
             *a |= _i->ptr[_i->seqread_indx + k] << ((3-i)<<3);
@@ -418,7 +431,7 @@ int main()
     perfcounter_config(COUNT_INSTRUCTIONS, true);
     if (input.length != 0) {
 		dpu_strstr(&input);
-        dbg_printf("Tasklet %d: found searched pattern %lu %d bytes\n", idx, perfcounter_get(), input_length);
+        printf("Tasklet %d: found searched pattern %lu %d bytes\n", idx, perfcounter_get(), input_length);
 	}
 #endif
     return 0;
