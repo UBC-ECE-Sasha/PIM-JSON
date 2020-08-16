@@ -88,6 +88,26 @@ const char *DEMO_QUERY12_STR = "\n\
 SELECT count(*)\n\
 FROM tweets\n\
 WHERE text contains \"aaba\"";
+// 5%
+const char *DEMO_QUERY13_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"China\" AND text contains \"Biden\"";
+// 2%
+const char *DEMO_QUERY14_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"trade\" AND text contains \"Biden\"";
+// 11.5%
+const char *DEMO_QUERY15_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"support\" AND text contains \"China\"";
+// 
+const char *DEMO_QUERY16_STR = "\n\
+SELECT count(*)\n\
+FROM tweets\n\
+WHERE text contains \"Chinese\" AND text contains \"rich\"";
 
 
 json_passed_t demo_q1_text(const char *value, void *) {
@@ -138,6 +158,21 @@ json_passed_t demo_q12_text(const char *value, void *) {
     return strstr(value, XSTR(QUERY)) ? JSON_PASS : JSON_FAIL;
 }
 
+json_passed_t demo_q13_text(const char *value, void *) {
+    return strstr(value, "China") && strstr(value, "Biden") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q14_text(const char *value, void *) {
+    return strstr(value, "trade") && strstr(value, "Biden") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q15_text(const char *value, void *) {
+    return strstr(value, "support") && strstr(value, "China") ? JSON_PASS : JSON_FAIL;
+}
+
+json_passed_t demo_q16_text(const char *value, void *) {
+    return strstr(value, "Chinese") && strstr(value, "rich") ? JSON_PASS : JSON_FAIL;
+}
 
 json_query_t demo_query1() {
     json_query_t query = json_query_new();
@@ -208,6 +243,30 @@ json_query_t demo_query11() {
 json_query_t demo_query12() {
     json_query_t query = json_query_new();
     json_query_add_string_filter(query, "text", demo_q12_text);
+    return query;
+}
+
+json_query_t demo_query13() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q13_text);
+    return query;
+}
+
+json_query_t demo_query14() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q14_text);
+    return query;
+}
+
+json_query_t demo_query15() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q15_text);
+    return query;
+}
+
+json_query_t demo_query16() {
+    json_query_t query = json_query_new();
+    json_query_add_string_filter(query, "text", demo_q16_text);
     return query;
 }
 
@@ -304,9 +363,41 @@ static const char **sparser_demo_query12(int *count) {
     return predicates;
 }
 
+static const char **sparser_demo_query13(int *count) {
+    static const char *_1 = "China";
+    static const char *_2 = "Biden";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
+    return predicates;
+}
+
+static const char **sparser_demo_query14(int *count) {
+    static const char *_1 = "trade";
+    static const char *_2 = "Biden";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
+    return predicates;
+}
+
+static const char **sparser_demo_query15(int *count) {
+    static const char *_1 = "support";
+    static const char *_2 = "China";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
+    return predicates;
+}
+
+static const char **sparser_demo_query16(int *count) {
+    static const char *_1 = "Chinese";
+    static const char *_2 = "rich";
+    static const char *predicates[] = {_1, _2, NULL};
+    *count = 2;
+    return predicates;
+}
+
 // ************** All the queries we want to test **************
-const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, demo_query8, demo_query9, demo_query10, demo_query11, demo_query12, NULL};
-const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, sparser_demo_query8, sparser_demo_query9, sparser_demo_query10, sparser_demo_query11, sparser_demo_query12, NULL};
-const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, DEMO_QUERY8_STR, DEMO_QUERY9_STR, DEMO_QUERY10_STR, DEMO_QUERY11_STR, DEMO_QUERY12_STR, NULL };
+const zakir_query_t demo_queries[] = {demo_query1, demo_query2, demo_query3, demo_query4, demo_query5, demo_query6, demo_query7, demo_query8, demo_query9, demo_query10, demo_query11, demo_query12, demo_query13, demo_query14, demo_query15, demo_query16, NULL};
+const sparser_zakir_query_preds_t sdemo_queries[] = { sparser_demo_query1, sparser_demo_query2, sparser_demo_query3, sparser_demo_query4, sparser_demo_query5, sparser_demo_query6, sparser_demo_query7, sparser_demo_query8, sparser_demo_query9, sparser_demo_query10, sparser_demo_query11, sparser_demo_query12, sparser_demo_query13, sparser_demo_query14, sparser_demo_query15, sparser_demo_query16, NULL};
+const char *demo_query_strings[] = { DEMO_QUERY1_STR, DEMO_QUERY2_STR, DEMO_QUERY3_STR, DEMO_QUERY4_STR, DEMO_QUERY5_STR, DEMO_QUERY6_STR, DEMO_QUERY7_STR, DEMO_QUERY8_STR, DEMO_QUERY9_STR, DEMO_QUERY10_STR, DEMO_QUERY11_STR, DEMO_QUERY12_STR, DEMO_QUERY13_STR, DEMO_QUERY14_STR, DEMO_QUERY15_STR, DEMO_QUERY16_STR, NULL };
 
 #endif
