@@ -40,6 +40,11 @@ echo "#### 16GB start ####" >> eval_size.txt
 echo " " >> eval_size.txt
 echo " " >> eval_size.txt
 echo "16GB done"
+echo "#### 18GB start ####" >> eval_size.txt
+./eval_size_sub.sh ../../../tweet_18GB.json 2 16 512
+echo " " >> eval_size.txt
+echo " " >> eval_size.txt
+echo "18GB done"
 echo "#### 20GB start ####" >> eval_size.txt
 ./eval_size_sub.sh ../../../tweet_20GB.json 2 16 512
 echo " " >> eval_size.txt
