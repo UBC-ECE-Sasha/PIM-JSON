@@ -13,7 +13,7 @@
 #include <sys/time.h>
 #include <limits.h>
 
-#include "../../../PIM-common/host/include/host.h"
+#include "../../PIM-common/host/include/host.h"
 #include "dpu_host.h"
 #include "../dpu_common.h"
 // dpu binary location TBD
@@ -84,12 +84,6 @@ static bool calculate_offset(char *input, long length, uint64_t input_offset[NR_
             r_end = memchr(input+o_end, '\n', length- o_end);
             input_offset[dpu_indx+1][0] = r_end-input +1;
             dbg_printf("dpu %d starts at %ld %c\n", dpu_indx+1, input_offset[dpu_indx+1][0], input[input_offset[dpu_indx+1][0]]);
-        }
-    }
-
-    // each tasklet
-    for (dpu_indx=0; dpu_indx< NR_DPUS; dpu_indx++) {
-        if(dpu_indx != NR_DPUS-1) {
             input_length[dpu_indx] = input_offset[dpu_indx+1][0] - input_offset[dpu_indx][0];
         }
         else {
@@ -97,25 +91,25 @@ static bool calculate_offset(char *input, long length, uint64_t input_offset[NR_
         }
 
         t_blocksize = input_length[dpu_indx] / NR_TASKLETS;
+        uint64_t base = input_offset[dpu_indx][0];
         for(tasklet_index = 0; tasklet_index< NR_TASKLETS; tasklet_index++) {
             if(tasklet_index != NR_TASKLETS-1) {
 
-                o_end = (tasklet_index+1) * t_blocksize + input_offset[dpu_indx][0];
+                o_end = (tasklet_index+1) * t_blocksize + base;
                 r_end = memchr(input+o_end, '\n', length- o_end);
                 if(r_end == NULL) {
                     printf("NULL found\n");
                 }
-                input_offset[dpu_indx][tasklet_index+1] = (r_end-input +1 - (uint64_t)input_offset[dpu_indx][0]);
+                input_offset[dpu_indx][tasklet_index+1] = (r_end-input +1 - (uint64_t)base);
                 #if 0
                     if(dpu_indx!= 0) {
                         dbg_printf("dpu %d tasklet %d starts at %ld %c\n", dpu_indx, tasklet_index+1,input_offset[dpu_indx][tasklet_index+1], input[input_offset[dpu_indx][tasklet_index+1]+input_offset[dpu_indx][0]]);
                     }
                 #endif
             }
-
         }
-    }
 
+    }
     return true;
 }
 
