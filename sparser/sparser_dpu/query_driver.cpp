@@ -163,6 +163,31 @@ double bench_sparser_engine(char *data, long length, json_query_t jquery, ascii_
 }
 
 
+double bench_sparser_engine_raw(char *data, long length, json_query_t jquery, ascii_rawfilters_t *predicates, int queryno) {
+
+
+	struct callback_data cdata;
+	cdata.count = 0;
+  cdata.query = jquery;
+
+  // XXX Generate a schedule
+  sparser_query_t *query = sparser_calibrate(data, length, '\n', predicates, _rapidjson_parse_callback, &cdata);
+  bench_timer_t s = time_start();
+  // XXX Apply the search.
+  sparser_stats_t *stats = sparser_search(data, length, '\n', query, _rapidjson_parse_callback, &cdata);
+
+  double elapsed = time_stop(s);
+  printf("RapidJSON with Sparser:\t\x1b[1;33mResult: %ld (Execution Time: %f seconds)\x1b[0m\n", cdata.count, elapsed);
+  printf("stats callback_passed %ld\n", stats->callback_passed);
+  printf("stats sparser passed %ld\n", stats->sparser_passed);
+//   printf("stats parse time %f seconds\n", stats->parse_time);
+//   printf("stats process time %f seconds\n", stats->process_time); 	
+  free(stats);
+  free(query);
+  return elapsed;
+}
+
+
 long process_return_buffer(char* record_start, sparser_callback_t callback, callback_data* cdata, uint64_t search_len) {
     int pass = 0;
 
@@ -170,8 +195,8 @@ long process_return_buffer(char* record_start, sparser_callback_t callback, call
 		pass = 1;
 	}
 	dbg_printf("length of the records is %d %c %c\n", search_len, record_start[0], record_start[search_len-2]);
-#if HOST_DEBUG
-    for(uint32_t i =0; i< record_length; i++){
+#if 0
+    for(uint32_t i =0; i< search_len; i++){
         char c = record_start[i];
         putchar(c);
     }
@@ -248,7 +273,7 @@ void bench_dpu_sparser_engine(char *data, long length, json_query_t jquery, asci
 		// quicksort(record_offsets[i], 0, output_count[i]-1); // sort here didn't help
 		for(uint32_t j=0; j<output_count[i]; j++) {
 			candidates++;
-			dbg_printf("dpu %d record_offsets %d\n", i, record_offsets[i][j]);
+			dbg_printf("dpu %d record_offsets %d length %d\n", i, record_offsets[i][j].offset, record_offsets[i][j].length);
 			parse_suceed += process_return_buffer(base+record_offsets[i][j].offset, _rapidjson_parse_callback, &cdata, record_offsets[i][j].length);
 			dbg_printf("%u ", record_offsets[i][j].offset);
 		}
@@ -307,6 +332,7 @@ void process_query(char *raw, long length, int query_index) {
 	ascii_rawfilters_t d = decompose(preds, count);
 
 	bench_sparser_engine(raw, length, jquery, &d, query_index);
+	bench_sparser_engine_raw(raw, length, jquery, &d, query_index);
 	bench_dpu_sparser_engine(raw, length, jquery, &d, query_index);
 
 	// json_query_t query = demo_queries[query_index]();

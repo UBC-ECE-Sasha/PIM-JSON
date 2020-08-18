@@ -454,6 +454,85 @@ sparser_query_t *sparser_calibrate(BYTE *sample,
     return squery;
 }
 
+
+sparser_stats_t *sparser_search_raw(char *input, long length, BYTE delimiter,
+                                sparser_query_t *query,
+                                sparser_callback_t callback,
+                                void *callback_ctx) {
+
+		for (unsigned i = 0; i < query->count; i++) {
+			 SPARSER_DBG("Search string %d: %s\n", i+1, query->queries[i]);
+		}
+
+    sparser_stats_t stats;
+    memset(&stats, 0, sizeof(stats));
+	// double parse_time = 0.0;
+	// double process_time = 0.0;
+
+		// Last byte in the data.
+		char *input_last_byte = input + length - 1;
+
+		// Points to the end of the current record.
+		char *current_record_end;
+		// Points to the start of the current record.
+		char *current_record_start;
+
+		current_record_start = input;
+
+		while (current_record_start < input_last_byte) {
+			// bench_timer_t s_1 = time_start();
+			stats.records++;
+
+      // TODO for binary data, we don't want to do this: Instead, we search forward
+      // until we find a match, and then scan forward in the callback until the match point.
+			current_record_end = (char *)memchr(current_record_start, delimiter,
+          input_last_byte - current_record_start);
+			if (!current_record_end) {
+				current_record_end = input_last_byte;
+			}
+
+      size_t record_length = current_record_end - current_record_start;
+			unsigned count = 0;
+			// Search for each of the raw filters.
+			for (unsigned i = 0; i < query->count; i++) {
+				if (memmem(current_record_start, record_length, query->queries[i], query->lens[i]) == NULL) {
+					break;	
+				}
+
+				stats.total_matches++;
+				count++;
+			}
+			// process_time += time_stop(s_1);
+			// If all raw filters matched...
+			if (count == query->count) {
+				stats.sparser_passed++;
+				// bench_timer_t s = time_start();
+				#if 0
+				if (callback(current_record_start, callback_ctx)) {
+					stats.callback_passed++;
+				}
+				#endif
+				// parse_time += time_stop(s);
+			}
+
+			// Update to point to the next record. The top of the loop will update the remaining variables.
+			current_record_start = current_record_end + 1;
+		}
+
+    if (stats.sparser_passed > 0) {
+        stats.fraction_passed_correct =
+            (double)stats.callback_passed / (double)stats.sparser_passed;
+        stats.fraction_passed_incorrect = 1.0 - stats.fraction_passed_correct;
+    }
+	// stats.parse_time = parse_time;
+	// stats.process_time = process_time;
+    sparser_stats_t *ret = (sparser_stats_t *)malloc(sizeof(sparser_stats_t));
+    memcpy(ret, &stats, sizeof(stats));
+
+    return ret;
+}
+
+
 /* Performs the sparser search given a compiled search query and a buffer.
  *
  * This performs a simple sparser search given the query and input buffer. It
