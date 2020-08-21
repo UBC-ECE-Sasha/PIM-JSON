@@ -1,6 +1,8 @@
 # PIM-JSON
 JSON to binary conversion in memory
 
+Original sparser code can be found [here](https://github.com/stanford-futuredata/sparser)
+
 ## sparser/sparser_dpu/
 This is integrating the dpu implementation of strstr to the existing sparser code base  
 RapidJson is used for the host to do actual parsing  
