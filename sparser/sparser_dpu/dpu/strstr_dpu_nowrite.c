@@ -22,7 +22,7 @@
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define MASK_BIT(var,pos) ((var) |= (1<<(pos)))
 #define SEQ_READ_CACHE_SIZE 504
-#define SEQ_4_OP1
+#define SEQ_4_OP1 // adjust strstr OP level
 
 
 /* global variables */
@@ -33,8 +33,6 @@ __host uint32_t query_count = 0;
 __host unsigned int  key_cache[MAX_KEY_ARY_LENGTH];
 unsigned int key_char[MAX_KEY_ARY_LENGTH];
 uint8_t __mram_noinit DPU_BUFFER[MEGABYTE(58)];
-// __mram_noinit uint32_t RECORDS_OFFSETS[MAX_NUM_RETURNS] = {0};
-// __mram_noinit uint32_t RECORDS_LENS[MAX_NUM_RETURNS] = {0};
 __mram_noinit struct json_candidate candidates[MAX_NUM_RETURNS] = {0};
 __host uint32_t input_offset[NR_TASKLETS];
 __host volatile uint32_t offset_count = 0;
@@ -47,14 +45,6 @@ MUTEX_INIT(write_mutex);
  *  
  **/
 static int find_next_set_bit(unsigned int res) {
-#if HOST_DEBUG
-    for (int i=1; i< 4; i++){
-        if(res & (0x01<<((3-i)<<3))){
-            return i;
-        }
-    }
-    return 4;
-#endif
     if (res & 65536) return 1;
     if (res & 256) return 2;
     if (res & 1) return 3;
@@ -124,8 +114,7 @@ void seqread_get_x(struct in_buffer_context *_i, uint32_t len){
 
 #ifdef SEQ_4_OP1
 static unsigned int READ_4_BYTE_4(struct in_buffer_context *_i) {
-    
-
+    // read 4 then call sequential get
     unsigned int ret = _i->ptr[0] << 24 |
                   (_i->ptr[1] << 16) |
                   (_i->ptr[2] << 8) | 
@@ -200,7 +189,6 @@ static bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* r
         }
         else{
             // normal process
-            // if true mask the bit correspand ot the key_cache
             // shift_same(key_cache[i]>>24, &b);
             b = key_char[i];
             __builtin_cmpb4_rrr(res, a, b);
@@ -215,6 +203,7 @@ static bool STRSTR_4_BYTE_OP(unsigned int a, int* next, struct record_descrip* r
                 __builtin_cmpb4_rrr(res, a, key_cache[i]);
                 if(res == 0x01010101) {
                     *next = 4;
+                    // mask the query number
                     MASK_BIT(rec->str_mask, i);
                     return true;
                 }
