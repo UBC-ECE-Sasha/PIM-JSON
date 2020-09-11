@@ -22,7 +22,7 @@
 #define CHECK_BIT(var,pos) ((var) & (1<<(pos)))
 #define MASK_BIT(var,pos) ((var) |= (1<<(pos)))
 #define SEQ_READ_CACHE_SIZE 504
-#define SEQ_4_OP1
+#define SEQ_4_OP2
 
 
 /* global variables */
@@ -39,6 +39,7 @@ __host uint32_t input_offset[NR_TASKLETS];
 __host volatile uint32_t offset_count = 0;
 
 MUTEX_INIT(write_mutex);
+MUTEX_INIT(read_mutex);
 
 /**
  * 
@@ -295,7 +296,7 @@ static void dpu_strstr(struct in_buffer_context *input) {
     rec.str_mask = 0;
     uint8_t tasklet_id = me();
 
-    unsigned int a = READ_4_BYTE_4(input);
+    unsigned int a = READ_4_BYTE_4X(input);
     dbg_printf("tasklet %d reads %x\n", tasklet_id, a);
 
     uint32_t query_passed_count = 0;
@@ -317,12 +318,12 @@ static void dpu_strstr(struct in_buffer_context *input) {
             case 1:
             case 2:
             case 3:
-                READ_X_BYTE_4(&a, input, next);
+                READ_X_BYTE_4X(&a, input, next);
                 input->curr += next;
                 break;
             case 4:
             default: 
-                a = READ_4_BYTE_4(input);
+                a = READ_4_BYTE_4X(input);
                 input->curr +=4;
                 break;
         }

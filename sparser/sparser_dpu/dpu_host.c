@@ -136,7 +136,7 @@ void multi_dpu_test(char *input, unsigned int * keys, uint32_t keys_length, long
 	struct timeval end;
     
     #if SIMULATOR
-        length = MEGABYTE(4);//4330180661;
+        length = MEGABYTE(1);//4330180661;
     #endif  
 
     if(keys == NULL) {
