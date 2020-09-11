@@ -1,0 +1,6 @@
+[submodule "PIM-common"]
+	path = PIM-common
+	url = https://github.com/UBC-ECE-Sasha/PIM-common.git
+[submodule "sparser/json/rapidjson"]
+	path = sparser/json/rapidjson
+	url = https://github.com/Tencent/rapidjson.git
